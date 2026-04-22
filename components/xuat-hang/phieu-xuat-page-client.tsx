@@ -328,7 +328,10 @@ export function PhieuXuatPageClient(props: {
           const result = await fetchXuatHangCreateBootstrap(targetMode)
           if (!active || !result.data) return
           writeCachedCreateBootstrap(targetMode, result.data)
-          setCreateBootstrap((current) => mergeCreateBootstrap(current, result.data))
+          setCreateBootstrap((current) => {
+			  if (!current) return result.data
+			  return mergeCreateBootstrap(current, result.data)
+			})
           if (targetMode === 'DON_HANG') {
             setCreateBootstrapLoaded(true)
           } else {
