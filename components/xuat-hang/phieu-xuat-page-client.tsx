@@ -329,7 +329,7 @@ export function PhieuXuatPageClient(props: {
           if (!active || !result.data) return
           writeCachedCreateBootstrap(targetMode, result.data)
           setCreateBootstrap((current) => {
-			  if (!current) return result.data
+			  if (!current) return current;
 			  return mergeCreateBootstrap(current, result.data)
 			})
           if (targetMode === 'DON_HANG') {
