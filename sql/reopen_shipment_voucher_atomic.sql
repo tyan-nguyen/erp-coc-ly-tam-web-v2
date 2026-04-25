@@ -66,10 +66,62 @@ begin
   where shipment_voucher_id = p_voucher_id;
 
   if coalesce(v_return_count, 0) > 0 then
+    if to_regclass('public.system_audit_log') is not null then
+      insert into public.system_audit_log (
+        action,
+        entity_type,
+        entity_id,
+        actor_id,
+        actor_role,
+        summary_json,
+        note
+      )
+      values (
+        'REOPEN',
+        'PHIEU_XUAT_BAN',
+        p_voucher_id::text,
+        p_user_id,
+        v_actor_role,
+        jsonb_build_object(
+          'result', 'BLOCKED',
+          'blocked_downstream_type', 'RETURN_VOUCHER',
+          'blocked_downstream_count', v_return_count,
+          'reopened_from_status', v_voucher.trang_thai
+        ),
+        'Phiếu này đã phát sinh phiếu trả hàng downstream. Cần rollback bước sau trước khi mở lại phiếu xuất.'
+      );
+    end if;
+
     raise exception 'Phiếu này đã phát sinh phiếu trả hàng downstream. Cần rollback bước sau trước khi mở lại phiếu xuất.';
   end if;
 
   if coalesce(v_return_serial_count, 0) > 0 then
+    if to_regclass('public.system_audit_log') is not null then
+      insert into public.system_audit_log (
+        action,
+        entity_type,
+        entity_id,
+        actor_id,
+        actor_role,
+        summary_json,
+        note
+      )
+      values (
+        'REOPEN',
+        'PHIEU_XUAT_BAN',
+        p_voucher_id::text,
+        p_user_id,
+        v_actor_role,
+        jsonb_build_object(
+          'result', 'BLOCKED',
+          'blocked_downstream_type', 'RETURN_VOUCHER_SERIAL',
+          'blocked_downstream_count', v_return_serial_count,
+          'reopened_from_status', v_voucher.trang_thai
+        ),
+        'Phiếu này đã phát sinh serial trả hàng downstream. Cần rollback bước sau trước khi mở lại phiếu xuất.'
+      );
+    end if;
+
     raise exception 'Phiếu này đã phát sinh serial trả hàng downstream. Cần rollback bước sau trước khi mở lại phiếu xuất.';
   end if;
 
@@ -134,6 +186,39 @@ begin
     updated_at = now(),
     ngay_thao_tac = coalesce(p_ngay_thao_tac, current_date)
   where voucher_id = p_voucher_id;
+
+  if to_regclass('public.system_audit_log') is not null then
+    insert into public.system_audit_log (
+      action,
+      entity_type,
+      entity_id,
+      actor_id,
+      actor_role,
+      before_json,
+      after_json,
+      summary_json,
+      note
+    )
+    values (
+      'REOPEN',
+      'PHIEU_XUAT_BAN',
+      p_voucher_id::text,
+      p_user_id,
+      v_actor_role,
+      jsonb_build_object(
+        'reopened_from_status', v_voucher.trang_thai
+      ),
+      jsonb_build_object(
+        'reopened_to_status', 'CHO_XAC_NHAN'
+      ),
+      jsonb_build_object(
+        'result', 'REOPENED',
+        'reverted_serial_count', coalesce(v_reverted_count, 0),
+        'blocked_downstream_type', null
+      ),
+      'Admin mở lại phiếu xuất hàng đã xác nhận.'
+    );
+  end if;
 
   return coalesce(v_reverted_count, 0);
 end;

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { bulkSoftDeleteMasterDataAction } from '@/lib/master-data/actions'
 import { bulkDeactivateWarehouseLocationAction } from '@/lib/master-data/warehouse-location-actions'
@@ -97,6 +97,47 @@ function PaginationButton({
     <button type="button" onClick={onClick} className="app-outline rounded-xl px-4 py-2 text-sm font-semibold transition">
       {children}
     </button>
+  )
+}
+
+function SelectAllHeaderCheckbox({ scope }: { scope: string }) {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    const updateState = () => {
+      const items = Array.from(
+        document.querySelectorAll<HTMLInputElement>(`input[data-select-scope="${scope}"][data-select-item="true"]`)
+      )
+      const checkedCount = items.filter((item) => item.checked).length
+      const allChecked = items.length > 0 && checkedCount === items.length
+      const partiallyChecked = checkedCount > 0 && checkedCount < items.length
+
+      if (inputRef.current) {
+        inputRef.current.checked = allChecked
+        inputRef.current.indeterminate = partiallyChecked
+      }
+    }
+
+    updateState()
+    document.addEventListener('change', updateState)
+    return () => document.removeEventListener('change', updateState)
+  }, [scope])
+
+  return (
+    <input
+      ref={inputRef}
+      type="checkbox"
+      aria-label="Chọn tất cả"
+      onChange={(event) => {
+        const items = document.querySelectorAll<HTMLInputElement>(
+          `input[data-select-scope="${scope}"][data-select-item="true"]`
+        )
+        items.forEach((item) => {
+          item.checked = event.target.checked
+        })
+        event.target.indeterminate = false
+      }}
+    />
   )
 }
 
@@ -233,6 +274,7 @@ export function DmKhListClient({
   contact: string
   columnLabels: Record<string, string>
 }) {
+  const selectScope = useId()
   const { q, setQ, showInactive, setShowInactive, filteredRows, totalPages, safePage, pagedRows, setPage } =
     useLocalFilterState({ rows, basePath, initialQ, initialShowInactive, pageSize })
 
@@ -289,7 +331,7 @@ export function DmKhListClient({
                     className="sticky top-0 z-10 px-3 py-3 font-semibold whitespace-nowrap"
                     style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                   >
-                    Chọn
+                    <SelectAllHeaderCheckbox scope={selectScope} />
                   </th>
                   {columns.map((column) => (
                     <th
@@ -322,7 +364,13 @@ export function DmKhListClient({
                       style={{ borderColor: 'color-mix(in srgb, var(--color-border) 72%, white)' }}
                     >
                       <td className="px-3 py-2 align-middle">
-                        <input type="checkbox" name="key_value" value={safeStringify(row[keyField])} />
+                        <input
+                          type="checkbox"
+                          name="key_value"
+                          value={safeStringify(row[keyField])}
+                          data-select-scope={selectScope}
+                          data-select-item="true"
+                        />
                       </td>
                       {columns.map((column) => {
                         const isLinkColumn = column === 'ma_kh' || column === 'ten_kh'
@@ -395,6 +443,7 @@ export function DmNccListClient({
   addressField: string
   noteField: string
 }) {
+  const selectScope = useId()
   const { q, setQ, showInactive, setShowInactive, filteredRows, totalPages, safePage, pagedRows, setPage } =
     useLocalFilterState({ rows, basePath, initialQ, initialShowInactive, pageSize })
 
@@ -447,7 +496,7 @@ export function DmNccListClient({
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
                   <th className="sticky top-0 z-10 px-3 py-3 font-semibold whitespace-nowrap" style={{ backgroundColor: 'var(--color-surface)' }}>
-                    Chọn
+                    <SelectAllHeaderCheckbox scope={selectScope} />
                   </th>
                   {['Mã nhà cung cấp', 'Tên nhà cung cấp', 'Loại nhà cung cấp', 'Người liên hệ', 'SĐT', 'Email', 'Địa chỉ', 'Ghi chú'].map((label) => (
                     <th key={label} className="sticky top-0 z-10 px-3 py-3 font-semibold whitespace-nowrap" style={{ backgroundColor: 'var(--color-surface)' }}>
@@ -475,7 +524,13 @@ export function DmNccListClient({
                       style={{ borderColor: 'color-mix(in srgb, var(--color-border) 72%, white)' }}
                     >
                       <td className="px-3 py-2 align-middle">
-                        <input type="checkbox" name="key_value" value={safeStringify(row[keyField])} />
+                        <input
+                          type="checkbox"
+                          name="key_value"
+                          value={safeStringify(row[keyField])}
+                          data-select-scope={selectScope}
+                          data-select-item="true"
+                        />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <Link href={editHref} className="font-semibold hover:underline" style={{ color: 'var(--color-primary)' }}>
@@ -547,6 +602,7 @@ export function DmDuanListClient({
   areaField: string
   noteField: string
 }) {
+  const selectScope = useId()
   const { q, setQ, showInactive, setShowInactive, filteredRows, totalPages, safePage, pagedRows, setPage } =
     useLocalFilterState({ rows, basePath, initialQ, initialShowInactive, pageSize })
 
@@ -599,7 +655,7 @@ export function DmDuanListClient({
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
                   <th className="sticky top-0 z-10 px-3 py-3 font-semibold whitespace-nowrap" style={{ backgroundColor: 'var(--color-surface)' }}>
-                    Chọn
+                    <SelectAllHeaderCheckbox scope={selectScope} />
                   </th>
                   {['Mã dự án', 'Tên dự án', 'Khách hàng', 'Địa chỉ công trình', 'Khu vực', 'Ghi chú'].map((label) => (
                     <th key={label} className="sticky top-0 z-10 px-3 py-3 font-semibold whitespace-nowrap" style={{ backgroundColor: 'var(--color-surface)' }}>
@@ -627,7 +683,13 @@ export function DmDuanListClient({
                       style={{ borderColor: 'color-mix(in srgb, var(--color-border) 72%, white)' }}
                     >
                       <td className="px-3 py-2 align-middle">
-                        <input type="checkbox" name="key_value" value={safeStringify(row[keyField])} />
+                        <input
+                          type="checkbox"
+                          name="key_value"
+                          value={safeStringify(row[keyField])}
+                          data-select-scope={selectScope}
+                          data-select-item="true"
+                        />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <Link href={editHref} className="font-semibold hover:underline" style={{ color: 'var(--color-primary)' }}>
@@ -691,6 +753,7 @@ export function WarehouseLocationListClient({
   initialShowInactive: boolean
   pageSize: number
 }) {
+  const selectScope = useId()
   const { q, setQ, showInactive, setShowInactive, filteredRows, totalPages, safePage, pagedRows, setPage } =
     useLocalFilterState({ rows, basePath, initialQ, initialShowInactive, pageSize })
 
@@ -742,7 +805,7 @@ export function WarehouseLocationListClient({
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
                   <th className="sticky top-0 z-10 px-3 py-3 font-semibold whitespace-nowrap" style={{ backgroundColor: 'var(--color-surface)' }}>
-                    Chọn
+                    <SelectAllHeaderCheckbox scope={selectScope} />
                   </th>
                   {['Mã bãi', 'Tên bãi', 'Nhóm', 'Bãi cha', 'Đang chứa', 'Trạng thái'].map((label) => (
                     <th key={label} className="sticky top-0 z-10 px-3 py-3 font-semibold whitespace-nowrap" style={{ backgroundColor: 'var(--color-surface)' }}>
@@ -770,7 +833,13 @@ export function WarehouseLocationListClient({
                       style={{ borderColor: 'color-mix(in srgb, var(--color-border) 72%, white)' }}
                     >
                       <td className="px-3 py-2 align-middle">
-                        <input type="checkbox" name="key_value" value={safeStringify(row[keyField])} />
+                        <input
+                          type="checkbox"
+                          name="key_value"
+                          value={safeStringify(row[keyField])}
+                          data-select-scope={selectScope}
+                          data-select-item="true"
+                        />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <Link href={editHref} className="font-semibold hover:underline" style={{ color: 'var(--color-primary)' }}>

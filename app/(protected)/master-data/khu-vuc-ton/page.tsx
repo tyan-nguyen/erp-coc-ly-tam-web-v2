@@ -54,13 +54,31 @@ export default async function WarehouseLocationPage(props: { searchParams: Searc
   return (
     <div className="space-y-6">
       <section className="app-surface rounded-2xl p-6">
-        <div className="inline-flex rounded-full px-3 py-1 text-xs font-semibold tracking-[0.18em] uppercase app-primary-soft">
-          Danh mục
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="inline-flex rounded-full px-3 py-1 text-xs font-semibold tracking-[0.18em] uppercase app-primary-soft">
+              Danh mục
+            </div>
+            <h1 className="mt-4 text-2xl font-bold">Khu vực tồn / Bãi</h1>
+            <p className="app-muted mt-2 max-w-3xl text-sm">
+              Tạo các bãi thực tế như A1, A2, A3... để sau này gán serial cọc vào đúng vị trí ngoài kho.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/ton-kho/thanh-pham/vi-tri-bai/ma-qr"
+              className="app-outline rounded-xl px-4 py-2 text-sm font-semibold transition"
+            >
+              In QR bãi
+            </Link>
+            <Link
+              href="/ton-kho/thanh-pham/vi-tri-bai"
+              className="app-outline rounded-xl px-4 py-2 text-sm font-semibold transition"
+            >
+              Xem tồn theo bãi
+            </Link>
+          </div>
         </div>
-        <h1 className="mt-4 text-2xl font-bold">Khu vực tồn / Bãi</h1>
-        <p className="app-muted mt-2 max-w-3xl text-sm">
-          Tạo các bãi thực tế như A1, A2, A3... để sau này gán serial cọc vào đúng vị trí ngoài kho.
-        </p>
       </section>
 
       {msg ? (
@@ -79,6 +97,9 @@ export default async function WarehouseLocationPage(props: { searchParams: Searc
 
       <section className="app-surface rounded-2xl p-6">
         <h2 className="text-lg font-semibold">Tạo mới</h2>
+        <p className="app-muted mt-2 text-sm">
+          Tạo xong bãi là có thể mở ngay trang in QR để dán ngoài hiện trường.
+        </p>
         <form action={createWarehouseLocationAction} className="mt-5">
           <input type="hidden" name="location_type" value="STORAGE" />
           <div className="grid items-end gap-4 md:grid-cols-[260px_minmax(0,1fr)_auto]">

@@ -6,6 +6,7 @@ import {
   canViewShipment,
   isAdminRole,
 } from '@/lib/auth/roles'
+import { writeAuditLog } from '@/lib/audit-log/write'
 import { loadDonHangList } from '@/lib/don-hang/repository'
 import type { AvailableSegmentOption } from '@/lib/san-xuat/types'
 import { buildStockIdentityKey } from '@/lib/ton-kho-thanh-pham/internal'
@@ -66,6 +67,34 @@ type RawReturnedSerial = {
   stockSourceKey: string
   resolutionStatus: 'NHAP_DU_AN' | 'NHAP_KHACH_LE' | 'HUY'
   note: string
+}
+
+async function writeShipmentReopenAudit(
+  supabase: AnySupabase,
+  input: {
+    entityType: 'PHIEU_XUAT_BAN' | 'PHIEU_XUAT_BAN_RETURN_REQUEST'
+    entityId: string
+    actorId: string
+    reopenedFromStatus?: string | null
+    reopenedToStatus?: string | null
+    result: 'REOPENED' | 'BLOCKED'
+    blockedDownstreamType?: string | null
+    note: string
+  }
+) {
+  await writeAuditLog(supabase, {
+    action: 'REOPEN',
+    entityType: input.entityType,
+    entityId: input.entityId,
+    actorId: input.actorId,
+    beforeJson: input.reopenedFromStatus ? { reopened_from_status: input.reopenedFromStatus } : null,
+    afterJson: input.reopenedToStatus ? { reopened_to_status: input.reopenedToStatus } : null,
+    summaryJson: {
+      result: input.result,
+      blocked_downstream_type: input.blockedDownstreamType || null,
+    },
+    note: input.note,
+  })
 }
 
 export type XuatHangSourceMode = 'DON_HANG' | 'TON_KHO'
@@ -3033,9 +3062,27 @@ export async function reopenShipmentReturnRequest(
     .eq('is_active', true)
   if (returnVoucherError) throw returnVoucherError
   if (Number(returnVoucherCount || 0) > 0) {
+    await writeShipmentReopenAudit(supabase, {
+      entityType: 'PHIEU_XUAT_BAN_RETURN_REQUEST',
+      entityId: params.voucherId,
+      actorId: params.userId,
+      reopenedFromStatus: detail.returnRequest.status,
+      result: 'BLOCKED',
+      blockedDownstreamType: 'RETURN_VOUCHER',
+      note: 'Đã có phiếu trả hàng downstream. Cần rollback bước sau trước khi mở lại đề nghị trả hàng.',
+    })
     throw new Error('Đã có phiếu trả hàng downstream. Cần rollback bước sau trước khi mở lại đề nghị trả hàng.')
   }
   if (detail.returnedSerials.length > 0) {
+    await writeShipmentReopenAudit(supabase, {
+      entityType: 'PHIEU_XUAT_BAN_RETURN_REQUEST',
+      entityId: params.voucherId,
+      actorId: params.userId,
+      reopenedFromStatus: detail.returnRequest.status,
+      result: 'BLOCKED',
+      blockedDownstreamType: 'RETURNED_SERIAL',
+      note: 'Đã có serial trả lại được xử lý. Cần rollback bước sau trước khi mở lại đề nghị trả hàng.',
+    })
     throw new Error('Đã có serial trả lại được xử lý. Cần rollback bước sau trước khi mở lại đề nghị trả hàng.')
   }
 
@@ -3065,6 +3112,16 @@ export async function reopenShipmentReturnRequest(
     .eq('is_active', true)
   if (error) throw error
 
+  await writeShipmentReopenAudit(supabase, {
+    entityType: 'PHIEU_XUAT_BAN_RETURN_REQUEST',
+    entityId: params.voucherId,
+    actorId: params.userId,
+    reopenedFromStatus: detail.returnRequest.status,
+    reopenedToStatus: 'NO_RETURN_REQUEST',
+    result: 'REOPENED',
+    note: 'Mở lại đề nghị trả hàng để KTBH chỉnh sửa lại từ đầu.',
+  })
+
   return {
     requestedCount: 0,
   }
@@ -3091,6 +3148,15 @@ export async function reopenConfirmedShipmentVoucher(
     throw new Error('Phiếu này chưa có serial đã xác nhận để mở lại.')
   }
   if (detail.returnRequest || detail.returnedSerials.length > 0) {
+    await writeShipmentReopenAudit(supabase, {
+      entityType: 'PHIEU_XUAT_BAN',
+      entityId: params.voucherId,
+      actorId: params.userId,
+      reopenedFromStatus: detail.status,
+      result: 'BLOCKED',
+      blockedDownstreamType: detail.returnRequest ? 'RETURN_REQUEST' : 'RETURNED_SERIAL',
+      note: 'Phiếu này đã phát sinh bước trả hàng. Cần rollback bước sau trước khi mở lại phiếu xuất.',
+    })
     throw new Error('Phiếu này đã phát sinh bước trả hàng. Cần rollback bước sau trước khi mở lại phiếu xuất.')
   }
   const { count: returnVoucherCount, error: returnVoucherError } = await supabase
@@ -3100,6 +3166,15 @@ export async function reopenConfirmedShipmentVoucher(
     .eq('is_active', true)
   if (returnVoucherError) throw returnVoucherError
   if (Number(returnVoucherCount || 0) > 0) {
+    await writeShipmentReopenAudit(supabase, {
+      entityType: 'PHIEU_XUAT_BAN',
+      entityId: params.voucherId,
+      actorId: params.userId,
+      reopenedFromStatus: detail.status,
+      result: 'BLOCKED',
+      blockedDownstreamType: 'RETURN_VOUCHER',
+      note: 'Phiếu này đã phát sinh phiếu trả hàng downstream. Cần rollback bước sau trước khi mở lại phiếu xuất.',
+    })
     throw new Error('Phiếu này đã phát sinh phiếu trả hàng downstream. Cần rollback bước sau trước khi mở lại phiếu xuất.')
   }
 

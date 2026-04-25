@@ -40,7 +40,24 @@ type QuerySupabaseLike = {
 }
 
 function buildTemplateUsageKey(row: TemplateUsageShape) {
-  return safeString(row.template_id) || safeString(row.ma_coc)
+  const templateId = safeString(row.template_id)
+  if (templateId) return templateId
+
+  const maCoc = safeString(row.ma_coc)
+  if (maCoc) return maCoc
+
+  const loaiCoc = safeString(row.loai_coc)
+  const macBeTong = safeString(row.mac_be_tong)
+  const doNgoai = safeString(row.do_ngoai)
+  const chieuDay = safeString(row.chieu_day)
+  if (!loaiCoc && !macBeTong && !doNgoai && !chieuDay) return ''
+
+  return [loaiCoc, macBeTong, doNgoai, chieuDay].join('|')
+}
+
+function isMissingColumnError(error: { message: string } | null | undefined, columnName: string) {
+  const message = safeString(error?.message).toLowerCase()
+  return message.includes('column') && message.includes(columnName.toLowerCase()) && message.includes('does not exist')
 }
 
 function parseTemplateMeta(row: RowData) {
@@ -139,10 +156,33 @@ export async function buildTemplateUsageMap(
   rows: RowData[]
 ) {
   const templateKeys = new Set(rows.map((row) => buildTemplateUsageKey(row)).filter(Boolean))
-  const { data, error } = await supabase
-    .from('boc_tach_nvl')
-    .select('template_id, ma_coc, loai_coc, mac_be_tong, do_ngoai, chieu_day')
-    .limit(3000)
+  const selectAttempts = [
+    'template_id, ma_coc, loai_coc, mac_be_tong, do_ngoai, chieu_day',
+    'ma_coc, loai_coc, mac_be_tong, do_ngoai, chieu_day',
+    'loai_coc, mac_be_tong, do_ngoai, chieu_day',
+  ]
+
+  let data: unknown[] | null = null
+  let error: { message: string } | null = null
+  for (const columns of selectAttempts) {
+    const result = await supabase
+      .from('boc_tach_nvl')
+      .select(columns)
+      .limit(3000)
+
+    data = result.data
+    error = result.error
+    if (!error) break
+
+    if (
+      isMissingColumnError(error, 'template_id') ||
+      isMissingColumnError(error, 'ma_coc')
+    ) {
+      continue
+    }
+
+    break
+  }
 
   if (error) throw new Error(error.message)
 
@@ -186,12 +226,45 @@ export async function getTemplateUsageMessage(
 ) {
   const templateId = safeString(row.template_id)
   const maCoc = safeString(row.ma_coc)
-  if (!templateId && !maCoc) return ''
-  const scopedResult = templateId
-    ? await supabase.from('boc_tach_nvl').select('boc_id').eq('template_id', templateId).limit(1)
-    : maCoc
-      ? await supabase.from('boc_tach_nvl').select('boc_id').eq('ma_coc', maCoc).limit(1)
-      : Promise.resolve({ data: [], error: null })
+  const loaiCoc = safeString(row.loai_coc)
+  const macBeTong = safeString(row.mac_be_tong)
+  const doNgoai = safeString(row.do_ngoai)
+  const chieuDay = safeString(row.chieu_day)
+  if (!templateId && !maCoc && !loaiCoc && !macBeTong && !doNgoai && !chieuDay) return ''
+
+  let scopedResult =
+    templateId
+      ? await supabase.from('boc_tach_nvl').select('boc_id').eq('template_id', templateId).limit(1)
+      : await Promise.resolve({ data: [], error: null })
+
+  if (
+    (!templateId || isMissingColumnError(scopedResult.error, 'template_id')) &&
+    maCoc
+  ) {
+    scopedResult = await supabase.from('boc_tach_nvl').select('boc_id').eq('ma_coc', maCoc).limit(1)
+  }
+
+  if (
+    (templateId || maCoc) &&
+    scopedResult.error &&
+    (isMissingColumnError(scopedResult.error, 'template_id') || isMissingColumnError(scopedResult.error, 'ma_coc'))
+  ) {
+    scopedResult = { data: [], error: null }
+  }
+
+  if ((scopedResult.data ?? []).length === 0 && loaiCoc) {
+    let compositeQuery = supabase.from('boc_tach_nvl').select('boc_id').eq('loai_coc', loaiCoc)
+    if (macBeTong) {
+      compositeQuery = compositeQuery.eq('mac_be_tong', macBeTong)
+    }
+    if (doNgoai) {
+      compositeQuery = compositeQuery.eq('do_ngoai', doNgoai)
+    }
+    if (chieuDay) {
+      compositeQuery = compositeQuery.eq('chieu_day', chieuDay)
+    }
+    scopedResult = await compositeQuery.limit(1)
+  }
 
   if (scopedResult.error) throw new Error(scopedResult.error.message)
   if ((scopedResult.data ?? []).length === 0) return ''

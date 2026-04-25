@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { bulkDeleteDmCocTemplateAction } from '@/lib/master-data/dm-coc-template-actions'
 import { bulkDeleteNvlAction } from '@/lib/master-data/nvl-actions'
 import { filterRowsByQuery, safeStringify, type RowData } from '@/lib/master-data/crud-utils'
@@ -86,6 +86,47 @@ function PaginationButton({
   )
 }
 
+function SelectAllHeaderCheckbox({ scope }: { scope: string }) {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    const updateState = () => {
+      const items = Array.from(
+        document.querySelectorAll<HTMLInputElement>(`input[data-select-scope="${scope}"][data-select-item="true"]`)
+      )
+      const checkedCount = items.filter((item) => item.checked).length
+      const allChecked = items.length > 0 && checkedCount === items.length
+      const partiallyChecked = checkedCount > 0 && checkedCount < items.length
+
+      if (inputRef.current) {
+        inputRef.current.checked = allChecked
+        inputRef.current.indeterminate = partiallyChecked
+      }
+    }
+
+    updateState()
+    document.addEventListener('change', updateState)
+    return () => document.removeEventListener('change', updateState)
+  }, [scope])
+
+  return (
+    <input
+      ref={inputRef}
+      type="checkbox"
+      aria-label="Chọn tất cả"
+      onChange={(event) => {
+        const items = document.querySelectorAll<HTMLInputElement>(
+          `input[data-select-scope="${scope}"][data-select-item="true"]`
+        )
+        items.forEach((item) => {
+          item.checked = event.target.checked
+        })
+        event.target.indeterminate = false
+      }}
+    />
+  )
+}
+
 function useDebouncedValue<T>(value: T, delayMs: number) {
   const [debouncedValue, setDebouncedValue] = useState(value)
 
@@ -148,6 +189,7 @@ export function NvlListClient({
   groupOptions: Array<{ value: string; label: string }>
   pageSize: number
 }) {
+  const selectScope = useId()
   const [q, setQ] = useState(initialQ)
   const [group, setGroup] = useState(initialGroup)
   const [page, setPage] = useState(1)
@@ -230,7 +272,10 @@ export function NvlListClient({
             <table className="min-w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
-                  {['Chọn', 'Mã hàng', 'Tên hàng', 'Nhóm hàng', 'ĐVT', '% hao hụt', 'Đơn giá chưa VAT', 'Giá'].map((label) => (
+                  <th className="sticky top-0 z-10 px-3 py-3 font-semibold whitespace-nowrap" style={{ backgroundColor: 'var(--color-surface)' }}>
+                    <SelectAllHeaderCheckbox scope={selectScope} />
+                  </th>
+                  {['Mã hàng', 'Tên hàng', 'Nhóm hàng', 'ĐVT', '% hao hụt', 'Đơn giá chưa VAT', 'Giá'].map((label) => (
                     <th key={label} className="sticky top-0 z-10 px-3 py-3 font-semibold whitespace-nowrap" style={{ backgroundColor: 'var(--color-surface)' }}>
                       {label}
                     </th>
@@ -271,7 +316,13 @@ export function NvlListClient({
                       style={{ borderColor: 'color-mix(in srgb, var(--color-border) 72%, white)' }}
                     >
                       <td className="px-3 py-2 align-middle">
-                        <input type="checkbox" name="nvl_id" value={String(row.nvl_id ?? '')} />
+                        <input
+                          type="checkbox"
+                          name="nvl_id"
+                          value={String(row.nvl_id ?? '')}
+                          data-select-scope={selectScope}
+                          data-select-item="true"
+                        />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <Link href={editHref} className="font-semibold hover:underline" style={{ color: 'var(--color-primary)' }}>
@@ -338,6 +389,7 @@ export function DmCocTemplateListClient({
   initialQ: string
   pageSize: number
 }) {
+  const selectScope = useId()
   const { q, setQ, page, setPage } = useLocalFilterState({ basePath, initialQ, pageSize })
   const filteredRows = useMemo(() => filterRowsByQuery(rows, q), [rows, q])
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize))
@@ -376,7 +428,10 @@ export function DmCocTemplateListClient({
             <table className="min-w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
-                  {['Chọn', 'Mã', 'Nguồn mẫu', 'Loại cọc', 'ĐK ngoài', 'Thành cọc', 'Mác BT', 'Thép PC', 'Số thanh PC', 'Thép đai', 'Đơn/kép', 'Thép buộc', 'A1', 'A2', 'A3', 'PctA1', 'PctA2', 'PctA3', 'Mặt bích', 'Măng xông', 'Táp vuông', 'Mũi cọc', 'Kg/md'].map((label) => (
+                  <th className="sticky top-0 z-10 px-3 py-3 font-semibold whitespace-nowrap" style={{ backgroundColor: 'var(--color-surface)' }}>
+                    <SelectAllHeaderCheckbox scope={selectScope} />
+                  </th>
+                  {['Mã', 'Nguồn mẫu', 'Loại cọc', 'ĐK ngoài', 'Thành cọc', 'Mác BT', 'Thép PC', 'Số thanh PC', 'Thép đai', 'Đơn/kép', 'Thép buộc', 'A1', 'A2', 'A3', 'PctA1', 'PctA2', 'PctA3', 'Mặt bích', 'Măng xông', 'Táp vuông', 'Mũi cọc', 'Kg/md'].map((label) => (
                     <th key={label} className="sticky top-0 z-10 px-3 py-3 font-semibold whitespace-nowrap" style={{ backgroundColor: 'var(--color-surface)' }}>
                       {label}
                     </th>
@@ -401,7 +456,13 @@ export function DmCocTemplateListClient({
                       style={{ borderColor: 'color-mix(in srgb, var(--color-border) 72%, white)' }}
                     >
                       <td className="px-3 py-2 align-middle">
-                        <input type="checkbox" name="key_value" value={safeStringify(row[keyField])} />
+                        <input
+                          type="checkbox"
+                          name="key_value"
+                          value={safeStringify(row[keyField])}
+                          data-select-scope={selectScope}
+                          data-select-item="true"
+                        />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <Link href={editHref} className="font-semibold hover:underline" style={{ color: 'var(--color-primary)' }}>

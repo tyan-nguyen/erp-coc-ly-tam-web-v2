@@ -928,51 +928,30 @@ export async function moLaiWarehouseIssueVoucher(
   }
 
   const voucherId = String(existingVoucher.voucher_id || '')
-
-  const { error: movementSchemaError } = await supabase.from('material_stock_movement').select('movement_id').limit(1)
-  if (!movementSchemaError) {
-    const { error: deleteMovementError } = await supabase
-      .from('material_stock_movement')
-      .delete()
-      .eq('source_type', 'PRODUCTION_ISSUE_VOUCHER')
-      .eq('source_id', voucherId)
-
-    if (deleteMovementError) {
-      throw new Error(deleteMovementError.message || 'Không dọn được stock movement NVL khi mở lại phiếu.')
-    }
-  } else if (!isMissingRelationError(movementSchemaError, 'material_stock_movement')) {
-    throw movementSchemaError
-  }
-
-  const { data, error } = await supabase
-    .from('sx_xuat_nvl')
-    .update({
-      is_active: false,
-      deleted_at: new Date().toISOString(),
-      updated_by: params.userId,
-    })
-    .eq('voucher_id', existingVoucher.voucher_id)
-    .eq('is_active', true)
-    .select('voucher_id')
-    .maybeSingle()
+  const { data: rpcResult, error } = await supabase.rpc('reopen_warehouse_issue_voucher_atomic', {
+    p_plan_id: params.planId,
+    p_user_id: params.userId,
+  })
 
   if (error) {
     const rawMessage = String(error.message || '')
-    const message = rawMessage.toLowerCase()
     if (
-      (message.includes('relation') && message.includes('sx_xuat_nvl')) ||
-      (message.includes('schema cache') && message.includes('sx_xuat_nvl'))
+      /reopen_warehouse_issue_voucher_atomic/i.test(rawMessage) ||
+      /function .* does not exist/i.test(rawMessage)
     ) {
-      throw new Error('Cần chạy file sql/sx_xuat_nvl_setup.sql trước khi dùng chức năng xuất NVL sản xuất.')
+      throw new Error(
+        'Thiếu SQL patch reopen phiếu thực sản xuất và xuất NVL. Cần chạy file sql/reopen_warehouse_issue_voucher_atomic.sql trước.'
+      )
     }
     throw new Error(rawMessage || 'Không mở lại được phiếu thực sản xuất và xuất NVL.')
   }
 
-  if (!data) {
-    throw new Error('Không mở lại được phiếu thực sản xuất và xuất NVL.')
-  }
+  const payload = rpcResult && typeof rpcResult === 'object' ? (rpcResult as Record<string, unknown>) : {}
 
-  return { voucherId: String(data.voucher_id) }
+  return {
+    voucherId: String(payload.voucherId || voucherId),
+    deletedMovementCount: Number(payload.deletedMovementCount || 0),
+  }
 }
 
 function findStoredMaterial(

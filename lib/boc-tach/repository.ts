@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isAdminRole, isCommercialRole, isQlsxRole } from '@/lib/auth/roles'
+import { writeAuditLog } from '@/lib/audit-log/write'
 import { computeBocTachPreview, sanitizeItems, sanitizeSegments } from '@/lib/boc-tach/calc'
 import type {
   AuxiliaryMaterialReference,
@@ -1255,6 +1256,7 @@ async function hasBocTachDownstreamRecords(supabase: AnySupabase, bocId: string)
   const [
     { count: orderCount, error: orderError },
     { count: planCount, error: planError },
+    { data: quoteLinkRows, error: quoteLinkError },
   ] = await Promise.all([
     supabase
       .from('don_hang')
@@ -1266,14 +1268,40 @@ async function hasBocTachDownstreamRecords(supabase: AnySupabase, bocId: string)
       .select('line_id', { count: 'exact', head: true })
       .eq('boc_id', bocId)
       .eq('is_active', true),
+    supabase
+      .from('bao_gia_boc_tach')
+      .select('quote_id')
+      .eq('boc_id', bocId),
   ])
 
   if (orderError) throw orderError
   if (planError) throw planError
+  if (quoteLinkError) throw quoteLinkError
+
+  const quoteIds = ((quoteLinkRows ?? []) as Array<Record<string, unknown>>)
+    .map((row) => String(row.quote_id ?? ''))
+    .filter(Boolean)
+
+  let activeQuoteStatuses: string[] = []
+  if (quoteIds.length > 0) {
+    const { data: quoteRows, error: quoteError } = await supabase
+      .from('bao_gia')
+      .select('quote_id, trang_thai')
+      .in('quote_id', quoteIds)
+      .eq('is_active', true)
+
+    if (quoteError) throw quoteError
+
+    activeQuoteStatuses = ((quoteRows ?? []) as Array<Record<string, unknown>>)
+      .map((row) => String(row.trang_thai ?? ''))
+      .filter((status) => status && status !== 'THAT_BAI')
+  }
 
   return {
     hasLinkedOrder: Number(orderCount || 0) > 0,
     hasProductionPlan: Number(planCount || 0) > 0,
+    hasActiveQuote: activeQuoteStatuses.length > 0,
+    activeQuoteStatuses,
   }
 }
 
@@ -1311,10 +1339,50 @@ export async function reopenBocTach(
 
   const downstream = await hasBocTachDownstreamRecords(supabase, params.bocId)
   if (downstream.hasProductionPlan) {
+    await writeAuditLog(supabase, {
+      action: 'REOPEN',
+      entityType: 'BOC_TACH_NVL',
+      entityId: params.bocId,
+      actorId: params.userId,
+      beforeJson: { reopened_from_status: currentStatus },
+      summaryJson: {
+        result: 'BLOCKED',
+        blocked_downstream_type: 'KE_HOACH_SX_LINE',
+      },
+      note: 'Bóc tách đã được đưa vào kế hoạch sản xuất. Cần mở ngược kế hoạch trước.',
+    })
     throw new Error('Bóc tách đã được đưa vào kế hoạch sản xuất. Cần mở ngược kế hoạch trước.')
   }
   if (downstream.hasLinkedOrder) {
+    await writeAuditLog(supabase, {
+      action: 'REOPEN',
+      entityType: 'BOC_TACH_NVL',
+      entityId: params.bocId,
+      actorId: params.userId,
+      beforeJson: { reopened_from_status: currentStatus },
+      summaryJson: {
+        result: 'BLOCKED',
+        blocked_downstream_type: 'DON_HANG',
+      },
+      note: 'Bóc tách đã sinh đơn hàng. Cần mở ngược đơn hàng trước.',
+    })
     throw new Error('Bóc tách đã sinh đơn hàng. Cần mở ngược đơn hàng trước.')
+  }
+  if (downstream.hasActiveQuote) {
+    await writeAuditLog(supabase, {
+      action: 'REOPEN',
+      entityType: 'BOC_TACH_NVL',
+      entityId: params.bocId,
+      actorId: params.userId,
+      beforeJson: { reopened_from_status: currentStatus },
+      summaryJson: {
+        result: 'BLOCKED',
+        blocked_downstream_type: 'BAO_GIA',
+        linked_quote_statuses: downstream.activeQuoteStatuses,
+      },
+      note: 'Bóc tách đang gắn với báo giá active. Tạm chặn mở lại để tránh lệch dữ liệu thương mại/kỹ thuật.',
+    })
+    throw new Error('Bóc tách đang gắn với báo giá active. Cần xử lý báo giá liên quan trước khi mở lại.')
   }
 
   const currentMeta = parseBocMeta(existing.row)
@@ -1340,6 +1408,20 @@ export async function reopenBocTach(
     }
   )
   if (error) throw new Error(toErrorMessage(error))
+
+  await writeAuditLog(supabase, {
+    action: 'REOPEN',
+    entityType: 'BOC_TACH_NVL',
+    entityId: params.bocId,
+    actorId: params.userId,
+    beforeJson: { reopened_from_status: currentStatus },
+    afterJson: { reopened_to_status: 'NHAP' },
+    summaryJson: {
+      result: 'REOPENED',
+      blocked_downstream_type: null,
+    },
+    note: 'Mở lại bóc tách để chỉnh sửa và gửi lại QLSX.',
+  })
 
   return {
     header: (data ?? existing.row) as Record<string, unknown>,
