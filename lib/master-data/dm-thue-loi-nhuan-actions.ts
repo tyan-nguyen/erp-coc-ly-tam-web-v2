@@ -1,5 +1,6 @@
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getAuthenticatedClientAndUser, getCurrentSessionProfile } from '@/lib/auth/session'
 import { softDeleteRowWithFallback, updateRowWithFallback } from '@/lib/master-data/mutation-helpers'
@@ -12,6 +13,7 @@ function redirectWithError(message: string) {
 }
 
 function redirectWithMessage(message: string) {
+  revalidatePath(BASE_PATH)
   redirect(`${BASE_PATH}?msg=${encodeURIComponent(message)}`)
 }
 

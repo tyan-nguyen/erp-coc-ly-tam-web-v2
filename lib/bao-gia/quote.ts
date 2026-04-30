@@ -229,7 +229,8 @@ export function buildQuoteEstimateSummary(
   const totalMaterialCost = sumBy(allMaterialRows, (item) => item.qty * item.price)
   const totalMd = Number(payload.header.total_md || preview.segment_snapshots.reduce((acc, seg) => acc + seg.len_m * seg.so_luong_doan, 0))
   const otherCostAmount = totalMd * computeOtherCostPerMd(payload, refs)
-  const subtotal = totalMaterialCost + otherCostAmount
+  const transportAmount = Number(preview.van_chuyen.phi_van_chuyen || 0)
+  const subtotal = totalMaterialCost + otherCostAmount + transportAmount
   const savedProfitPct = Number(payload.header.profit_pct || 0)
   const computedProfitPct = computeProfitPct(payload, refs, totalMd)
   const appliedProfitPct = savedProfitPct > 0 ? savedProfitPct : computedProfitPct

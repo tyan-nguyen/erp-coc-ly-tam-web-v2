@@ -268,7 +268,7 @@ export function NvlListClient({
               Xóa các dòng đã chọn
             </button>
           </div>
-          <div className="max-h-[560px] overflow-auto rounded-2xl border" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="master-data-table-frame">
             <table className="min-w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
@@ -424,7 +424,7 @@ export function DmCocTemplateListClient({
               Xóa các dòng đã chọn
             </button>
           </div>
-          <div className="max-h-[560px] overflow-auto rounded-2xl border" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="master-data-table-frame">
             <table className="min-w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
@@ -570,7 +570,7 @@ export function DmDinhMucPhuGroupListClient({
       {filteredRows.length === 0 ? (
         <p className="app-muted mt-4 text-sm">Không có dữ liệu phù hợp.</p>
       ) : (
-        <div className="mt-4 max-h-[560px] overflow-auto rounded-2xl border" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="master-data-table-frame">
           <table className="min-w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
@@ -679,7 +679,7 @@ export function DmCapphoiBtGroupListClient({
       {filteredRows.length === 0 ? (
         <p className="app-muted mt-4 text-sm">Không có dữ liệu phù hợp.</p>
       ) : (
-        <div className="mt-4 max-h-[560px] overflow-auto rounded-2xl border" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="master-data-table-frame">
           <table className="min-w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
@@ -787,7 +787,7 @@ export function DmThueLoiNhuanGroupListClient({
         />
       </div>
 
-      <div className="mt-4 max-h-[560px] overflow-auto rounded-2xl border" style={{ borderColor: 'var(--color-border)' }}>
+      <div className="master-data-table-frame">
         <table className="min-w-full border-collapse text-left text-sm">
           <thead>
             <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>

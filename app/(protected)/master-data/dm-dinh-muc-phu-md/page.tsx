@@ -36,6 +36,7 @@ export default async function DmDinhMucPhuMdPage(props: { searchParams: SearchPa
     supabase.from('nvl').select('*').eq('is_active', true).limit(1000),
   ])
 
+  const missingSetup = isMissingRelationError(error?.message)
   const rows = (rowsData ?? []) as RowData[]
   const templates = (templateRows ?? []) as RowData[]
   const allNvlItems = (nvlRows ?? []) as RowData[]
@@ -77,8 +78,8 @@ export default async function DmDinhMucPhuMdPage(props: { searchParams: SearchPa
   }))
 
   return (
-    <div className="space-y-6">
-      <section className="app-surface rounded-2xl p-6">
+    <div className="master-data-page">
+      <section className="master-data-section">
         <div className="inline-flex rounded-full px-3 py-1 text-xs font-semibold tracking-[0.18em] uppercase app-primary-soft">
           Danh mục
         </div>
@@ -89,53 +90,54 @@ export default async function DmDinhMucPhuMdPage(props: { searchParams: SearchPa
       </section>
 
       {msg ? (
-        <section
-          className="rounded-2xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: 'color-mix(in srgb, var(--color-primary) 24%, white)',
-            backgroundColor: 'color-mix(in srgb, var(--color-primary) 8%, white)',
-            color: 'var(--color-primary)',
-          }}
-        >
+        <section className="master-data-section master-data-message master-data-message-success">
           {msg}
         </section>
       ) : null}
-      {err ? <section className="app-accent-soft rounded-2xl px-4 py-3 text-sm">{err}</section> : null}
+      {err ? <section className="master-data-section master-data-message master-data-message-error">{err}</section> : null}
 
-      <section className="app-surface rounded-2xl p-6">
-        <h2 className="text-lg font-semibold">Tạo mới</h2>
-        <form action={createDmDinhMucPhuAction} className="mt-5 space-y-5">
-          <DmDinhMucPhuForm
-            pileGroups={pileGroups}
-            nvlOptions={nvlItems.map((row) => ({
-              nvl_id: String(row.nvl_id ?? ''),
-              ten_hang: String(row.ten_hang ?? ''),
-              dvt: String(row.dvt ?? ''),
-            }))}
-          />
-          <div className="flex justify-end">
-            <FormSubmitButton
-              pendingLabel="Đang lưu định mức..."
-              className="app-primary rounded-xl px-5 py-3 text-sm font-semibold transition disabled:opacity-60"
-            >
-              Lưu định mức
-            </FormSubmitButton>
-          </div>
-        </form>
-      </section>
+      {missingSetup ? (
+        <section className="master-data-section master-data-message master-data-message-success">
+          Chức năng này cần chạy SQL khởi tạo trước. Bảng <code>dm_dinh_muc_phu_md</code> hiện chưa có trên project này.
+        </section>
+      ) : (
+        <>
+          <section className="master-data-section">
+            <h2 className="text-lg font-semibold">Tạo mới</h2>
+            <form action={createDmDinhMucPhuAction} className="mt-5 space-y-5">
+              <DmDinhMucPhuForm
+                pileGroups={pileGroups}
+                nvlOptions={nvlItems.map((row) => ({
+                  nvl_id: String(row.nvl_id ?? ''),
+                  ten_hang: String(row.ten_hang ?? ''),
+                  dvt: String(row.dvt ?? ''),
+                }))}
+              />
+              <div className="flex justify-end">
+                <FormSubmitButton
+                  pendingLabel="Đang lưu định mức..."
+                  className="app-primary rounded-xl px-5 py-3 text-sm font-semibold transition disabled:opacity-60"
+                >
+                  Lưu định mức
+                </FormSubmitButton>
+              </div>
+            </form>
+          </section>
 
-      <section className="app-surface rounded-2xl p-6">
-        {error ? (
-          <pre className="app-accent-soft mt-4 overflow-auto rounded-xl p-4 text-sm">{JSON.stringify(error, null, 2)}</pre>
-        ) : (
-          <DmDinhMucPhuGroupListClient
-            groups={listGroups}
-            basePath={BASE_PATH}
-            initialQ={q}
-            pageSize={PAGE_SIZE}
-          />
-        )}
-      </section>
+          <section className="master-data-section">
+            {error ? (
+              <pre className="app-accent-soft mt-4 overflow-auto p-4 text-sm">{JSON.stringify(error, null, 2)}</pre>
+            ) : (
+              <DmDinhMucPhuGroupListClient
+                groups={listGroups}
+                basePath={BASE_PATH}
+                initialQ={q}
+                pageSize={PAGE_SIZE}
+              />
+            )}
+          </section>
+        </>
+      )}
 
       {editGroup ? (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 p-4">
@@ -198,6 +200,10 @@ export default async function DmDinhMucPhuMdPage(props: { searchParams: SearchPa
       ) : null}
     </div>
   )
+}
+
+function isMissingRelationError(message?: string) {
+  return /relation .* does not exist/i.test(String(message ?? '')) || /Could not find the table ['"]public\.[a-zA-Z0-9_]+['"] in the schema cache/i.test(String(message ?? ''))
 }
 
 function buildAuxiliaryGroups(rows: RowData[], query: string, nvlMap: Map<string, RowData>) {

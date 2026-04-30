@@ -1294,7 +1294,16 @@ export function BocTachDetailClient(props: {
               onChange={(value) => updateHeader('phuong_thuc_van_chuyen', value as BocTachDetailPayload['header']['phuong_thuc_van_chuyen'])}
               placeholder="-- chọn --"
             />
-            <NumberField label="Đơn giá/chuyến (VND)" value={payload.header.don_gia_van_chuyen} disabled={locked} onChange={(value) => updateHeader('don_gia_van_chuyen', value)} />
+            <NumberField
+              label={
+                payload.header.phuong_thuc_van_chuyen === 'OTHER'
+                  ? 'Đơn giá vận chuyển/md (VND)'
+                  : 'Đơn giá/chuyến (VND)'
+              }
+              value={payload.header.don_gia_van_chuyen}
+              disabled={locked}
+              onChange={(value) => updateHeader('don_gia_van_chuyen', value)}
+            />
             {payload.header.phuong_thuc_van_chuyen === 'WATERWAY' ? (
               <NumberField
                 label="Md/chuyến (tự nhập)"
@@ -1302,13 +1311,18 @@ export function BocTachDetailClient(props: {
                 disabled={locked}
                 onChange={(value) => updateHeader('md_per_trip_input', value)}
               />
+            ) : payload.header.phuong_thuc_van_chuyen === 'OTHER' ? (
+              <ReadOnlyField
+                label="Md áp phí"
+                value={String(totalMd)}
+              />
             ) : (
               <ReadOnlyField label="Md/chuyến (phần mềm tự tính)" value={String(preview.van_chuyen.md_per_trip)} />
             )}
             <Field label="Ghi chú vận chuyển" value={payload.header.ten_boc_tach} disabled={locked} onChange={(value) => updateHeader('ten_boc_tach', value)} />
           </div>
           <p className="app-muted mt-3 text-sm">
-            Đường bộ: phần mềm tự tính md/chuyến theo đường kính, kg/md và bộ đoạn cọc. Đường thủy: nhập md/chuyến + đơn giá là đủ.
+            Đường bộ: phần mềm tự tính md/chuyến theo đường kính, kg/md và bộ đoạn cọc. Đường thủy: nhập md/chuyến + đơn giá/chuyến. Không vận chuyển: có thể nhập thêm đơn giá vận chuyển/md; để trống hoặc 0 thì xem như khách vào tận xưởng lấy hàng.
           </p>
         </section>
       ) : null}
@@ -1415,6 +1429,7 @@ export function BocTachDetailClient(props: {
             disabled={locked}
             totalMd={totalMd}
             otherCostPerMd={otherCostPerMd}
+            transportMode={payload.header.phuong_thuc_van_chuyen}
             shippingPrice={payload.header.don_gia_van_chuyen}
             shippingTrips={preview.van_chuyen.so_chuyen}
             shippingAmount={preview.van_chuyen.phi_van_chuyen}
@@ -1778,6 +1793,7 @@ function EstimateSideCosts(props: {
   disabled?: boolean
   totalMd: number
   otherCostPerMd: number
+  transportMode: BocTachDetailPayload['header']['phuong_thuc_van_chuyen']
   shippingPrice: number
   shippingTrips: number
   shippingAmount: number
@@ -1820,8 +1836,8 @@ function EstimateSideCosts(props: {
             </tr>
             <tr className="border-t" style={{ borderColor: 'color-mix(in srgb, var(--color-border) 72%, white)' }}>
               <td className="px-4 py-3 font-semibold">Vận chuyển</td>
-              <td className="px-4 py-3 text-right">VND</td>
-              <td className="px-4 py-3 text-right">{props.shippingTrips}</td>
+              <td className="px-4 py-3 text-right">{props.transportMode === 'OTHER' ? 'vnd/md' : 'VND'}</td>
+              <td className="px-4 py-3 text-right">{props.transportMode === 'OTHER' ? formatNumber(props.totalMd) : props.shippingTrips}</td>
               <td className="px-4 py-3 text-right">{formatMoney(props.shippingPrice)}</td>
               <td className="px-4 py-3 text-right font-semibold">{formatMoney(props.shippingAmount)}</td>
             </tr>

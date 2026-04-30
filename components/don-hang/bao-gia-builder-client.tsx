@@ -149,9 +149,9 @@ export function BaoGiaBuilderClient(props: {
         specText: buildSpecText(item),
         dvt: 'md',
         qty: Number(item.tongMd || 0),
-        unitPrice: Number(item.donGiaBanChuaVatMd || 0),
-        unitPriceVat: Number(item.donGiaBanDaVatMd || 0),
-        amount: Number(item.tongGiaDaVat || 0),
+        unitPrice: roundQuoteCurrency(Number(item.donGiaBanChuaVatMd || 0)),
+        unitPriceVat: roundQuoteCurrency(Number(item.donGiaBanDaVatMd || 0)),
+        amount: roundQuoteCurrency(Number(item.tongGiaDaVat || 0)),
         profitPct:
           Number(item.donGiaVonMd || 0) > 0
             ? ((Number(item.donGiaBanChuaVatMd || 0) - Number(item.donGiaVonMd || 0)) /
@@ -195,8 +195,8 @@ export function BaoGiaBuilderClient(props: {
       accessoryRows.map((row, index) => {
         const option = props.accessoryOptions.find((item) => item.value === row.nvlId) || null
         const basePrice = Number(row.unitPrice || option?.price || 0)
-        const salePrice = basePrice * (1 + Number(row.profitPct || 0) / 100)
-        const unitPriceVat = salePrice * (1 + Number(row.vatPct || 0) / 100)
+        const salePrice = roundQuoteCurrency(basePrice * (1 + Number(row.profitPct || 0) / 100))
+        const unitPriceVat = roundQuoteCurrency(salePrice * (1 + Number(row.vatPct || 0) / 100))
         return {
           kind: 'accessory' as const,
           index: quoteRows.length + index + 1,
@@ -207,7 +207,7 @@ export function BaoGiaBuilderClient(props: {
           qty: Number(row.qty || 0),
           unitPrice: salePrice,
           unitPriceVat,
-          amount: Number(row.qty || 0) * unitPriceVat,
+          amount: roundQuoteCurrency(Number(row.qty || 0) * unitPriceVat),
           profitPct: Number(row.profitPct || 0),
           vatPct: Number(row.vatPct || 0),
         }
@@ -962,6 +962,13 @@ function formatNumber(value: number) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 3,
   }).format(Number(value || 0))
+}
+
+function roundQuoteCurrency(value: number) {
+  if (!Number.isFinite(value)) return 0
+  if (value === 0) return 0
+  const sign = value < 0 ? -1 : 1
+  return Math.floor(Math.abs(value) / 1000) * 1000 * sign
 }
 
 function formatCurrency(value: number) {

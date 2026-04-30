@@ -103,6 +103,10 @@ function unique(values: Array<string | null | undefined>) {
   return [...new Set(values.filter((value): value is string => Boolean(value)))]
 }
 
+function isMissingRelationError(message?: string) {
+  return /relation .* does not exist/i.test(String(message ?? '')) || /Could not find the table ['"]public\.[a-zA-Z0-9_]+['"] in the schema cache/i.test(String(message ?? ''))
+}
+
 function toOrderRow(row: Record<string, unknown>): DonHangRow {
   return row as unknown as DonHangRow
 }
@@ -151,7 +155,8 @@ async function loadLinkedQuoteMap(supabase: AnySupabase, bocIds: string[]) {
     .select('quote_id, boc_id')
     .in('boc_id', bocIds)
 
-  if (linkError) throw linkError
+  if (linkError && !isMissingRelationError(linkError.message)) throw linkError
+  if (linkError && isMissingRelationError(linkError.message)) return empty
 
   const quoteIds = unique((linkRows ?? []).map((row) => String(row.quote_id ?? '')))
   if (!quoteIds.length) return empty
@@ -162,7 +167,8 @@ async function loadLinkedQuoteMap(supabase: AnySupabase, bocIds: string[]) {
     .in('quote_id', quoteIds)
     .eq('is_active', true)
 
-  if (quoteError) throw quoteError
+  if (quoteError && !isMissingRelationError(quoteError.message)) throw quoteError
+  if (quoteError && isMissingRelationError(quoteError.message)) return empty
 
   const quoteMap = new Map(
     ((quoteRows ?? []) as Array<Record<string, unknown>>).map((row) => [String(row.quote_id ?? ''), row])
@@ -213,7 +219,8 @@ async function loadProjectMap(supabase: AnySupabase, projectIds: string[]) {
     .select('da_id, ten_da')
     .in('da_id', projectIds)
 
-  if (error) throw error
+  if (error && !isMissingRelationError(error.message)) throw error
+  if (error && isMissingRelationError(error.message)) return new Map<string, string>()
 
   return new Map(
     (data ?? []).map((row) => [String(row.da_id), String(row.ten_da || row.da_id)])
@@ -228,7 +235,8 @@ async function loadCustomerMap(supabase: AnySupabase, customerIds: string[]) {
     .select('kh_id, ten_kh')
     .in('kh_id', customerIds)
 
-  if (error) throw error
+  if (error && !isMissingRelationError(error.message)) throw error
+  if (error && isMissingRelationError(error.message)) return new Map<string, string>()
 
   return new Map(
     (data ?? []).map((row) => [String(row.kh_id), String(row.ten_kh || row.kh_id)])
@@ -244,7 +252,8 @@ async function loadTimelineCounts(supabase: AnySupabase, orderIds: string[]) {
     .select('order_id')
     .in('order_id', orderIds)
 
-  if (error) throw error
+  if (error && !isMissingRelationError(error.message)) throw error
+  if (error && isMissingRelationError(error.message)) return counts
 
   for (const row of data ?? []) {
     const orderId = String(row.order_id)
@@ -264,7 +273,8 @@ export async function loadDonHangList(
     .eq('is_active', true)
     .order('created_at', { ascending: false })
 
-  if (error) throw error
+  if (error && !isMissingRelationError(error.message)) throw error
+  if (error && isMissingRelationError(error.message)) return []
 
   const orders = ((data ?? []) as Record<string, unknown>[]).map(toOrderRow)
   const projectMap = await loadProjectMap(supabase, unique(orders.map((row) => row.da_id)))
@@ -334,7 +344,8 @@ export async function loadDonHangDetail(supabase: AnySupabase, orderId: string) 
     .eq('is_active', true)
     .maybeSingle()
 
-  if (orderError) throw orderError
+  if (orderError && !isMissingRelationError(orderError.message)) throw orderError
+  if (orderError && isMissingRelationError(orderError.message)) return null
   if (!orderData) return null
 
   const order = toOrderRow(orderData as Record<string, unknown>)
@@ -359,10 +370,10 @@ export async function loadDonHangDetail(supabase: AnySupabase, orderId: string) 
       .order('to_state'),
   ])
 
-  if (projectError) throw projectError
-  if (customerError) throw customerError
-  if (timelineError) throw timelineError
-  if (transitionError) throw transitionError
+  if (projectError && !isMissingRelationError(projectError.message)) throw projectError
+  if (customerError && !isMissingRelationError(customerError.message)) throw customerError
+  if (timelineError && !isMissingRelationError(timelineError.message)) throw timelineError
+  if (transitionError && !isMissingRelationError(transitionError.message)) throw transitionError
 
   const linkedQuoteMap = await loadLinkedQuoteMap(
     supabase,
@@ -446,8 +457,8 @@ async function hasOrderDownstreamRecords(supabase: AnySupabase, orderId: string)
       .eq('is_active', true),
   ])
 
-  if (planError) throw planError
-  if (shipmentError) throw shipmentError
+  if (planError && !isMissingRelationError(planError.message)) throw planError
+  if (shipmentError && !isMissingRelationError(shipmentError.message)) throw shipmentError
 
   return {
     hasProductionPlan: Number(planCount || 0) > 0,

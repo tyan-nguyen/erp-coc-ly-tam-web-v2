@@ -14,6 +14,13 @@ type UserProfile = {
 
 export const DEV_ROLE_OVERRIDE_COOKIE = 'dev_role_override'
 
+function buildLoginRedirectUrl(message?: string) {
+  const params = new URLSearchParams()
+  if (message) params.set('err', message)
+  const query = params.toString()
+  return query ? `/login?${query}` : '/login'
+}
+
 export async function getAuthenticatedClientAndUser() {
   const supabase = await createClient()
   const {
@@ -37,7 +44,13 @@ export async function getCurrentSessionProfile() {
     .single<UserProfile>()
 
   if (error || !profile || !profile.is_active) {
-    redirect('/login')
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined)
+    const message = error?.message
+      ? `Tai khoan dang nhap thanh cong nhung project nay chua co ho so user_profiles hop le. Chi tiet: ${error.message}`
+      : !profile
+        ? 'Tai khoan dang nhap thanh cong nhung project nay chua co dong user_profiles cho user nay.'
+        : 'Tai khoan nay dang bi ngung su dung trong user_profiles.'
+    redirect(buildLoginRedirectUrl(message))
   }
 
   const cookieStore = await cookies()

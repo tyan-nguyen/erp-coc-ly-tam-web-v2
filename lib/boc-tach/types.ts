@@ -289,7 +289,7 @@ export type BocTachPreview = {
     md_per_trip: number
     so_chuyen: number
     phi_van_chuyen: number
-    mode: 'AUTO_ROAD' | 'MANUAL_WATERWAY' | 'NONE'
+    mode: 'AUTO_ROAD' | 'MANUAL_WATERWAY' | 'MANUAL_OTHER_PER_MD' | 'NONE'
     details: Array<{
       label: string
       value: string

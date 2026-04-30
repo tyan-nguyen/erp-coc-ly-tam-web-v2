@@ -149,6 +149,66 @@ function EmptyDashboard(props: { title: string; subtitle: string; roleLabel: str
   )
 }
 
+function extractDashboardDataIssue(error: unknown) {
+  if (!error || typeof error !== 'object') return null
+
+  const candidate = error as { code?: unknown; message?: unknown }
+  const code = typeof candidate.code === 'string' ? candidate.code : ''
+  const message = typeof candidate.message === 'string' ? candidate.message : ''
+
+  if (code === 'PGRST205' || message.includes('schema cache') || message.includes('Could not find the table')) {
+    return message || 'Dashboard dang goi vao bang/schema chua ton tai trong project test.'
+  }
+
+  return null
+}
+
+function MissingSchemaDashboard(props: { subtitle: string; roleLabel: string; detail: string }) {
+  return (
+    <UnifiedShell>
+      <div className="px-6 py-6">
+        <div className="app-muted text-xs font-semibold uppercase tracking-[0.18em]">Dashboard</div>
+        <h1 className="mt-2 text-3xl font-bold">Moi truong test chua du schema dashboard</h1>
+        <p className="app-muted mt-2 text-sm">{props.subtitle}</p>
+      </div>
+      <div className="grid gap-0 border-t lg:grid-cols-[1fr_1fr]" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="px-6 py-5 lg:border-r" style={{ borderColor: 'var(--color-border)' }}>
+          <SectionTitle
+            eyebrow="Chan doan"
+            title="Dang nhap da thanh cong"
+            description="Project test nay chua du cac bang nghiep vu nen dashboard khong the tai du lieu nhu moi truong that."
+          />
+          <div className="mt-4 rounded-2xl border px-4 py-4 text-sm" style={{ borderColor: 'var(--color-border)' }}>
+            {props.detail}
+          </div>
+        </div>
+        <div className="px-6 py-5">
+          <SectionTitle
+            eyebrow="Goi y"
+            title="Can dung them schema"
+            description="Anh van co the dung project test, nhung can chay them cac bang/module khi test den tung nghiep vu."
+          />
+          <div className="mt-4 divide-y" style={{ borderColor: 'color-mix(in srgb, var(--color-border) 82%, white)' }}>
+            <NoteRow title="Role dang dung" meta="Ho so user_profiles da hop le." value={props.roleLabel} />
+            <NoteRow title="Auth da OK" meta="Login test da qua buoc xac thuc va doc profile." />
+            <NoteRow title="Buoc tiep theo" meta="Dung them schema cho don_hang, bao_gia, ke_hoach, ton kho... khi can." />
+          </div>
+        </div>
+      </div>
+    </UnifiedShell>
+  )
+}
+
+async function guardDashboardData<T>(loader: () => Promise<T>) {
+  try {
+    return { data: await loader(), issue: null as string | null }
+  } catch (error) {
+    const issue = extractDashboardDataIssue(error)
+    if (issue) return { data: null as T | null, issue }
+    throw error
+  }
+}
+
 export default async function DashboardPage() {
   const { profile } = await getCurrentSessionProfile()
   const supabase = await createClient()
@@ -820,14 +880,22 @@ export default async function DashboardPage() {
   }
 
   if (adminViewer) {
-    const [baoGiaData, donHangData, procurementData, planRows, inventoryCountData, finishedGoodsCountData] = await Promise.all([
-      loadBaoGiaListPageData(supabase),
-      loadDonHangListPageData(supabase, { viewerRole: profile.role }),
-      loadNvlProcurementFlowPageData(supabase),
-      loadKeHoachNgayList(supabase, profile.role),
-      loadInventoryCountingPageData(supabase),
-      loadFinishedGoodsCountingPageData(supabase),
-    ])
+    const { data, issue } = await guardDashboardData(() =>
+      Promise.all([
+        loadBaoGiaListPageData(supabase),
+        loadDonHangListPageData(supabase, { viewerRole: profile.role }),
+        loadNvlProcurementFlowPageData(supabase),
+        loadKeHoachNgayList(supabase, profile.role),
+        loadInventoryCountingPageData(supabase),
+        loadFinishedGoodsCountingPageData(supabase),
+      ])
+    )
+
+    if (issue || !data) {
+      return <MissingSchemaDashboard subtitle={welcomeLine} roleLabel={profile.role} detail={issue || 'Dashboard test chua du schema.'} />
+    }
+
+    const [baoGiaData, donHangData, procurementData, planRows, inventoryCountData, finishedGoodsCountData] = data
 
     return (
       <UnifiedShell>

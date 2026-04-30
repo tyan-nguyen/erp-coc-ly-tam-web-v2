@@ -5,10 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "dev:https": "next dev --experimental-https",
+    "dev:test": "bash scripts/dev-env.sh test 3001",
+    "dev:prod": "bash scripts/dev-env.sh prod 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "reset:master-data:test": "bash scripts/reset-master-data-test.sh"
+    "reset:master-data:test": "bash scripts/reset-master-data-test.sh",
+    "use:test": "bash scripts/use-env.sh test",
+    "use:prod": "bash scripts/use-env.sh prod"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

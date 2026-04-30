@@ -62,8 +62,8 @@ export async function CrudTablePage({ config, searchParams }: CrudTablePageProps
       : null
 
   return (
-    <div className="space-y-6">
-      <section className="app-surface rounded-2xl p-6">
+    <div className="master-data-page">
+      <section className="master-data-section">
         <div className="inline-flex rounded-full px-3 py-1 text-xs font-semibold tracking-[0.18em] uppercase app-primary-soft">
           Danh mục
         </div>
@@ -71,21 +71,10 @@ export async function CrudTablePage({ config, searchParams }: CrudTablePageProps
         <p className="app-muted mt-2 text-sm">{config.description}</p>
       </section>
 
-      {msg ? (
-        <section
-          className="rounded-2xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: 'color-mix(in srgb, var(--color-primary) 24%, white)',
-            backgroundColor: 'color-mix(in srgb, var(--color-primary) 8%, white)',
-            color: 'var(--color-primary)',
-          }}
-        >
-          {msg}
-        </section>
-      ) : null}
-      {err ? <section className="app-accent-soft rounded-2xl px-4 py-3 text-sm">{err}</section> : null}
+      {msg ? <section className="master-data-section master-data-message master-data-message-success">{msg}</section> : null}
+      {err ? <section className="master-data-section master-data-message master-data-message-error">{err}</section> : null}
 
-      <section className="app-surface rounded-2xl p-6">
+      <section className="master-data-section">
         <h2 className="text-lg font-semibold">Tạo mới</h2>
         <p className="app-muted mt-2 text-sm">
           Nhập JSON object đúng cột trong `public.{config.tableName}`.
@@ -111,7 +100,7 @@ export async function CrudTablePage({ config, searchParams }: CrudTablePageProps
         </form>
       </section>
 
-      <section className="app-surface rounded-2xl p-6">
+      <section className="master-data-section">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold">Danh sách</h2>
@@ -140,13 +129,13 @@ export async function CrudTablePage({ config, searchParams }: CrudTablePageProps
         </div>
 
         {error ? (
-          <pre className="app-accent-soft mt-4 overflow-auto rounded-xl p-4 text-sm">
+          <pre className="app-accent-soft mt-4 overflow-auto p-4 text-sm">
             {JSON.stringify(error, null, 2)}
           </pre>
         ) : rows.length === 0 ? (
           <p className="app-muted mt-4 text-sm">Không có dữ liệu phù hợp.</p>
         ) : (
-          <div className="mt-4 max-h-[560px] overflow-auto rounded-2xl border" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="master-data-table-frame">
             <table className="min-w-full border-collapse text-left text-sm">
               <thead>
                 <tr style={{ borderColor: 'var(--color-border)' }} className="border-b">

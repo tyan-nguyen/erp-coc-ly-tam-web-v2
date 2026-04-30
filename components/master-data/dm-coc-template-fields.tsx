@@ -42,6 +42,27 @@ export function DmCocTemplateFields({
     () => codePreviewOverride?.trim() || buildMaCocPreview(macBeTong, macThep, doNgoai, chieuDay),
     [chieuDay, codePreviewOverride, doNgoai, macBeTong, macThep]
   )
+  const accessoryGroups = useMemo(() => {
+    const matBich: RowData[] = []
+    const mangXong: RowData[] = []
+    const tapVuong: RowData[] = []
+    const muiCoc: RowData[] = []
+
+    for (const item of accessoryOptions) {
+      const kind = inferAccessoryKind(item)
+      if (kind === 'MAT_BICH') matBich.push(item)
+      else if (kind === 'MANG_XONG') mangXong.push(item)
+      else if (kind === 'TAM_VUONG') tapVuong.push(item)
+      else if (kind === 'MUI_COC_LIEN' || kind === 'MUI_COC_ROI') muiCoc.push(item)
+    }
+
+    return {
+      matBich,
+      mangXong,
+      tapVuong,
+      muiCoc,
+    }
+  }, [accessoryOptions])
 
   return (
     <div className="space-y-5">
@@ -220,10 +241,10 @@ export function DmCocTemplateFields({
           className="app-input w-full rounded-xl px-3 py-3 text-sm"
         />
       </Field>
-      <NvlSelectField label="Mặt bích" name="mat_bich_nvl_id" options={accessoryOptions} defaultValue={initialValues?.mat_bich_nvl_id ?? ''} required readOnly={readOnly} />
-      <NvlSelectField label="Măng xông" name="mang_xong_nvl_id" options={accessoryOptions} defaultValue={initialValues?.mang_xong_nvl_id ?? ''} required readOnly={readOnly} />
-      <NvlSelectField label="Táp vuông" name="tap_nvl_id" options={accessoryOptions} defaultValue={initialValues?.tap_nvl_id ?? ''} required readOnly={readOnly} />
-      <NvlSelectField label="Mũi cọc" name="mui_coc_nvl_id" options={accessoryOptions} defaultValue={initialValues?.mui_coc_nvl_id ?? ''} required readOnly={readOnly} />
+      <NvlSelectField label="Mặt bích" name="mat_bich_nvl_id" options={accessoryGroups.matBich} defaultValue={initialValues?.mat_bich_nvl_id ?? ''} required readOnly={readOnly} />
+      <NvlSelectField label="Măng xông" name="mang_xong_nvl_id" options={accessoryGroups.mangXong} defaultValue={initialValues?.mang_xong_nvl_id ?? ''} required readOnly={readOnly} />
+      <NvlSelectField label="Táp vuông" name="tap_nvl_id" options={accessoryGroups.tapVuong} defaultValue={initialValues?.tap_nvl_id ?? ''} required readOnly={readOnly} />
+      <NvlSelectField label="Mũi cọc" name="mui_coc_nvl_id" options={accessoryGroups.muiCoc} defaultValue={initialValues?.mui_coc_nvl_id ?? ''} required readOnly={readOnly} />
       <Field label="Khối lượng kg/md">
         <input
           type="text"
@@ -271,6 +292,7 @@ function NvlSelectField({
   const [query, setQuery] = useState(initialLabel)
   const [selectedId, setSelectedId] = useState(defaultValue)
   const [open, setOpen] = useState(false)
+  const [showAllOptions, setShowAllOptions] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -287,10 +309,11 @@ function NvlSelectField({
   }, [])
 
   const filteredOptions = useMemo(() => {
-    const keyword = query.trim().toLowerCase()
+    if (showAllOptions) return optionMap.slice(0, 12)
+    const keyword = normalizeAccessorySearch(query)
     if (!keyword) return optionMap.slice(0, 12)
-    return optionMap.filter((item) => item.label.toLowerCase().includes(keyword)).slice(0, 12)
-  }, [optionMap, query])
+    return optionMap.filter((item) => normalizeAccessorySearch(item.label).includes(keyword)).slice(0, 12)
+  }, [optionMap, query, showAllOptions])
 
   return (
     <Field label={label}>
@@ -303,13 +326,18 @@ function NvlSelectField({
           readOnly={readOnly}
           placeholder="Tìm hoặc chọn vật tư -- bắt buộc"
           onFocus={() => {
-            if (!readOnly) setOpen(true)
+            if (readOnly) return
+            setShowAllOptions(true)
+            setOpen(true)
           }}
           onChange={(event) => {
             if (readOnly) return
             const nextValue = event.target.value
             setQuery(nextValue)
-            const exactMatch = optionMap.find((item) => item.label.toLowerCase() === nextValue.trim().toLowerCase())
+            setShowAllOptions(false)
+            const exactMatch = optionMap.find(
+              (item) => normalizeAccessorySearch(item.label) === normalizeAccessorySearch(nextValue)
+            )
             setSelectedId(exactMatch?.id ?? '')
             setOpen(true)
           }}
@@ -334,6 +362,7 @@ function NvlSelectField({
                     event.preventDefault()
                     setQuery(item.label)
                     setSelectedId(item.id)
+                    setShowAllOptions(false)
                     setOpen(false)
                   }}
                   className="block w-full px-3 py-2 text-left text-sm transition hover:app-primary-soft"
@@ -354,6 +383,27 @@ function normalizeCuongDo(value: string | undefined) {
   if (normalized.startsWith('PHC')) return 'PHC'
   if (normalized.startsWith('PC')) return 'PC'
   return normalized
+}
+
+type AccessoryKind = 'MAT_BICH' | 'MANG_XONG' | 'MUI_COC_ROI' | 'MUI_COC_LIEN' | 'TAM_VUONG' | ''
+
+function normalizeAccessorySearch(value: string) {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+function inferAccessoryKind(item: RowData): AccessoryKind {
+  const source = `${String(item.ma_nvl ?? '')} ${String(item.ten_hang ?? '')}`.toUpperCase()
+  if (source.includes('PK-MB') || source.includes('MẶT BÍCH') || source.includes('MAT BICH')) return 'MAT_BICH'
+  if (source.includes('PK-MX') || source.includes('MĂNG XÔNG') || source.includes('MANG XONG')) return 'MANG_XONG'
+  if (source.includes('PK-MCR') || source.includes('MŨI CỌC RỜI') || source.includes('MUI COC ROI')) return 'MUI_COC_ROI'
+  if (source.includes('PK-MCL') || source.includes('MŨI CỌC LIỀN') || source.includes('MUI COC LIEN')) return 'MUI_COC_LIEN'
+  if (source.includes('PK-TV') || source.includes('TẤM VUÔNG') || source.includes('TAM VUONG')) return 'TAM_VUONG'
+  return ''
 }
 
 function normalizeMacThep(value: string | undefined) {

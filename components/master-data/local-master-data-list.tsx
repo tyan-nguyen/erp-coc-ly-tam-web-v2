@@ -223,17 +223,34 @@ const NHOM_KH_LABELS: Record<string, string> = {
 }
 
 function getKhHeaderClassName(column: string) {
-  if (column === 'ten_kh') return 'min-w-[280px] whitespace-nowrap'
-  if (column === 'email') return 'min-w-[220px] whitespace-nowrap'
   if (column === 'ma_kh') return 'whitespace-nowrap'
-  return ''
+  if (column === 'ten_kh') return 'whitespace-normal'
+  if (column === 'email') return 'whitespace-nowrap'
+  if (column === 'nhom_kh') return 'whitespace-normal'
+  if (column === 'ghi_chu') return 'whitespace-normal'
+  return 'whitespace-nowrap'
 }
 
 function getKhCellClassName(column: string) {
-  if (column === 'ten_kh') return 'min-w-[280px] whitespace-nowrap'
-  if (column === 'email') return 'min-w-[220px] whitespace-nowrap'
+  if (column === 'ten_kh') return 'whitespace-normal break-words'
+  if (column === 'email') return 'whitespace-nowrap'
   if (column === 'ma_kh') return 'whitespace-nowrap'
-  return ''
+  if (column === 'dia_chi' || column === 'ghi_chu') return 'whitespace-normal break-words'
+  if (column === 'nhom_kh') return 'whitespace-normal'
+  return 'whitespace-nowrap'
+}
+
+function getKhColumnWidth(column: string) {
+  if (column === 'ma_kh') return '11rem'
+  if (column === 'ten_kh') return '30%'
+  if (column === 'sdt' || column === 'so_dien_thoai' || column === 'dien_thoai') return '9rem'
+  if (column === 'lien_he') return '9rem'
+  if (column === 'email') return '14rem'
+  if (column === 'mst') return '9rem'
+  if (column === 'dia_chi') return '14rem'
+  if (column === 'nhom_kh') return '8.5rem'
+  if (column === 'ghi_chu') return '9rem'
+  return undefined
 }
 
 function formatKhCell(column: string, value: unknown) {
@@ -323,12 +340,18 @@ export function DmKhListClient({
               Xóa các dòng đã chọn
             </button>
           </div>
-          <div className="max-h-[560px] overflow-auto rounded-2xl border" style={{ borderColor: 'var(--color-border)' }}>
-            <table className="min-w-full border-collapse text-left text-sm">
+          <div className="master-data-table-frame">
+            <table className="w-full table-fixed border-collapse text-left text-sm">
+              <colgroup>
+                <col style={{ width: '3.5rem' }} />
+                {columns.map((column) => (
+                  <col key={column} style={getKhColumnWidth(column) ? { width: getKhColumnWidth(column) } : undefined} />
+                ))}
+              </colgroup>
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
                   <th
-                    className="sticky top-0 z-10 px-3 py-3 font-semibold whitespace-nowrap"
+                    className="sticky top-0 z-10 px-3 py-3 align-top font-semibold whitespace-nowrap"
                     style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                   >
                     <SelectAllHeaderCheckbox scope={selectScope} />
@@ -336,7 +359,7 @@ export function DmKhListClient({
                   {columns.map((column) => (
                     <th
                       key={column}
-                      className={`sticky top-0 z-10 px-3 py-3 font-semibold ${getKhHeaderClassName(column)}`}
+                      className={`sticky top-0 z-10 px-3 py-3 align-top font-semibold ${getKhHeaderClassName(column)}`}
                       style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
                     >
                       {columnLabels[column] ?? column}
@@ -376,7 +399,7 @@ export function DmKhListClient({
                         const isLinkColumn = column === 'ma_kh' || column === 'ten_kh'
                         const cellContent = formatKhCell(column, row[column])
                         return (
-                          <td key={`${index}-${column}`} className={`px-3 py-2 ${getKhCellClassName(column)}`}>
+                          <td key={`${index}-${column}`} className={`px-3 py-3 align-top ${getKhCellClassName(column)}`}>
                             {isLinkColumn ? (
                               <Link href={editHref} className="font-semibold hover:underline" style={{ color: 'var(--color-primary)' }}>
                                 {cellContent}
@@ -491,7 +514,7 @@ export function DmNccListClient({
               Xóa các dòng đã chọn
             </button>
           </div>
-          <div className="max-h-[560px] overflow-auto rounded-2xl border" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="master-data-table-frame">
             <table className="min-w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
@@ -650,7 +673,7 @@ export function DmDuanListClient({
               Xóa các dòng đã chọn
             </button>
           </div>
-          <div className="max-h-[560px] overflow-auto rounded-2xl border" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="master-data-table-frame">
             <table className="min-w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
@@ -800,7 +823,7 @@ export function WarehouseLocationListClient({
               Ngừng dùng các dòng đã chọn
             </button>
           </div>
-          <div className="max-h-[560px] overflow-auto rounded-2xl border" style={{ borderColor: 'var(--color-border)' }}>
+          <div className="master-data-table-frame">
             <table className="min-w-full border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>

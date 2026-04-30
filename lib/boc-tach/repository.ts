@@ -113,6 +113,10 @@ function normalizeText(value: unknown): string {
     .toUpperCase()
 }
 
+function isMissingRelationError(message?: string) {
+  return /relation .* does not exist/i.test(String(message ?? '')) || /Could not find the table ['"]public\.[a-zA-Z0-9_]+['"] in the schema cache/i.test(String(message ?? ''))
+}
+
 function resolveSteelKindForItem(
   item: BocTachDetailPayload['items'][number],
   materials: BocTachReferenceData['materials']
@@ -897,28 +901,26 @@ export async function loadBocTachReferenceData(
       : Promise.resolve({ data: [], error: null }),
   ])
 
-  if (mixError) throw mixError
-  if (auxError) throw auxError
-  if (templateError) throw templateError
-  if (projectError) throw projectError
-  if (customerError) throw customerError
-  if (materialError) throw materialError
-  if (priceError) throw priceError
-  if (otherCostError && !/relation .* does not exist/i.test(otherCostError.message) && !/Could not find the table ['"]public\.[a-zA-Z0-9_]+['"] in the schema cache/i.test(otherCostError.message)) {
-    throw otherCostError
-  }
+  if (mixError && !isMissingRelationError(mixError.message)) throw mixError
+  if (auxError && !isMissingRelationError(auxError.message)) throw auxError
+  if (templateError && !isMissingRelationError(templateError.message)) throw templateError
+  if (projectError && !isMissingRelationError(projectError.message)) throw projectError
+  if (customerError && !isMissingRelationError(customerError.message)) throw customerError
+  if (materialError && !isMissingRelationError(materialError.message)) throw materialError
+  if (priceError && !isMissingRelationError(priceError.message)) throw priceError
+  if (otherCostError && !isMissingRelationError(otherCostError.message)) throw otherCostError
 
-  const concreteMixRows = (mixRows ?? []) as Array<Record<string, unknown>>
-  const auxiliaryRateRows = (auxRows ?? []) as Array<Record<string, unknown>>
-  const pileTemplateRows = (templateRows ?? []) as Array<Record<string, unknown>>
+  const concreteMixRows = ((mixError && isMissingRelationError(mixError.message) ? [] : mixRows) ?? []) as Array<Record<string, unknown>>
+  const auxiliaryRateRows = ((auxError && isMissingRelationError(auxError.message) ? [] : auxRows) ?? []) as Array<Record<string, unknown>>
+  const pileTemplateRows = ((templateError && isMissingRelationError(templateError.message) ? [] : templateRows) ?? []) as Array<Record<string, unknown>>
   const templateCodeMap = buildTemplateCodeMap(pileTemplateRows)
-  const projectRefRows = (projectRows ?? []) as Array<Record<string, unknown>>
-  const customerRefRows = (customerRows ?? []) as Array<Record<string, unknown>>
-  const materialRefRows = (materialRows ?? []) as Array<Record<string, unknown>>
-  const materialPriceRows = (priceRows ?? []) as Array<Record<string, unknown>>
-  const otherCostRefRows = (otherCostRows ?? []) as Array<Record<string, unknown>>
+  const projectRefRows = ((projectError && isMissingRelationError(projectError.message) ? [] : projectRows) ?? []) as Array<Record<string, unknown>>
+  const customerRefRows = ((customerError && isMissingRelationError(customerError.message) ? [] : customerRows) ?? []) as Array<Record<string, unknown>>
+  const materialRefRows = ((materialError && isMissingRelationError(materialError.message) ? [] : materialRows) ?? []) as Array<Record<string, unknown>>
+  const materialPriceRows = ((priceError && isMissingRelationError(priceError.message) ? [] : priceRows) ?? []) as Array<Record<string, unknown>>
+  const otherCostRefRows = ((otherCostError && isMissingRelationError(otherCostError.message) ? [] : otherCostRows) ?? []) as Array<Record<string, unknown>>
 
-  const [{ data: vatRows }, { data: profitRows }] = await Promise.all(
+  const [{ data: vatRows, error: vatError }, { data: profitRows, error: profitError }] = await Promise.all(
     includeFinancialData
       ? [
           supabase.from('dm_thue_vat').select('*').limit(20),
@@ -930,8 +932,11 @@ export async function loadBocTachReferenceData(
         ]
   )
 
-  const vatConfigRows = (vatRows ?? []) as Array<Record<string, unknown>>
-  const profitRuleRows = (profitRows ?? []) as Array<Record<string, unknown>>
+  if (vatError && !isMissingRelationError(vatError.message)) throw vatError
+  if (profitError && !isMissingRelationError(profitError.message)) throw profitError
+
+  const vatConfigRows = ((vatError && isMissingRelationError(vatError.message) ? [] : vatRows) ?? []) as Array<Record<string, unknown>>
+  const profitRuleRows = ((profitError && isMissingRelationError(profitError.message) ? [] : profitRows) ?? []) as Array<Record<string, unknown>>
   const cocVatRow = vatConfigRows.find(
     (row) => String(row.loai_ap_dung || '').trim().toUpperCase() === 'COC'
   )
@@ -960,8 +965,65 @@ export async function loadBocTachReferenceData(
       .select('nvl_id, ten_hang, is_active')
       .in('nvl_id', missingNvlIds)
 
-    if (nvlError) {
+    if (nvlError && !isMissingRelationError(nvlError.message)) {
       throw nvlError
+    }
+    if (nvlError && isMissingRelationError(nvlError.message)) {
+      return {
+        concreteMixes: concreteMixRows.map(
+          (row): ConcreteMixReference => ({
+            cp_id: String(row.cp_id || ''),
+            nvl_id: String(row.nvl_id || ''),
+            ten_nvl: String(row.nvl_id || ''),
+            mac_be_tong: String(row.mac_be_tong || ''),
+            variant: parseConcreteMixVariant(row),
+            dinh_muc_m3: Number(row.dinh_muc_m3 || 0),
+            dvt: String(row.dvt || 'kg'),
+          })
+        ),
+        auxiliaryRates: auxiliaryRateRows.map(
+          (row): AuxiliaryMaterialReference => ({
+            dm_id: String(row.dm_id || ''),
+            nvl_id: String(row.nvl_id || ''),
+            ten_nvl: String(row.nvl_id || ''),
+            nhom_d: String(row.nhom_d || ''),
+            dinh_muc: Number(row.dinh_muc || 0),
+            dvt: String(row.dvt || 'kg'),
+          })
+        ),
+        pileTemplates: pileTemplateRows.map(
+          (row): PileTemplateReference => ({
+            template_id: readStringCandidate(row, ['template_id', 'id']),
+            label: buildTemplateLabel(row),
+            ma_coc: readStringCandidate(row, ['ma_coc', 'ma_coc_template']),
+          })
+        ),
+        customers: customerRefRows.map(
+          (row): CustomerReference => ({
+            kh_id: String(row.kh_id || ''),
+            ma_kh: String(row.ma_kh || ''),
+            ten_kh: String(row.ten_kh || row.kh_id || ''),
+            thong_tin: String(row.lien_he || row.email || row.sdt || ''),
+          })
+        ),
+        projects: projectRefRows.map(
+          (row): ProjectReference => ({
+            da_id: String(row.da_id || ''),
+            ma_da: String(row.ma_da || row.ma_duan || ''),
+            ten_da: String(row.ten_da || row.da_id || ''),
+            kh_id: String(row.kh_id || ''),
+            vi_tri_cong_trinh: cleanProjectLocationText(String(row.vi_tri_cong_trinh || row.dia_chi_cong_trinh || row.dia_diem || '')),
+          })
+        ),
+        materials: [],
+        hasFullReferenceData: false,
+        vatConfig: {
+          coc_vat_pct: Number(cocVatRow?.vat_pct || 0),
+          phu_kien_vat_pct: Number(phuKienVatRow?.vat_pct || 0),
+        },
+        profitRules: [],
+        otherCostsByDiameter: [],
+      }
     }
 
     for (const row of (nvlRows ?? []) as Array<Record<string, unknown>>) {

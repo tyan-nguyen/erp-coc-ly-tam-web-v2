@@ -20,6 +20,20 @@ function redirectWithMessage(message: string) {
   redirect(`${BASE_PATH}?msg=${encodeURIComponent(message)}`)
 }
 
+function redirectWithMessageAndQuery(message: string, query: string) {
+  const params = new URLSearchParams({
+    msg: message,
+  })
+  if (query.trim()) {
+    params.set('q', query.trim())
+  }
+  redirect(`${BASE_PATH}?${params.toString()}`)
+}
+
+function isRlsError(message: string | null | undefined) {
+  return String(message || '').toLowerCase().includes('row-level security policy')
+}
+
 function parseNumber(input: FormDataEntryValue | null) {
   const raw = String(input ?? '').trim()
   if (!raw) return 0
@@ -109,6 +123,9 @@ export async function createNvlAction(formData: FormData) {
   const insertedRow = insert.data
 
   if (insert.error || !insertedRow?.nvl_id) {
+    if (isRlsError(insert.error?.message)) {
+      redirectWithError('DB đang chặn quyền tạo NVL. Cần chạy patch `sql/nvl_master_data_rls_patch_dev.sql` cho bảng `nvl` và `gia_nvl`.')
+    }
     if (insert.error?.message.includes('hao_hut_pct')) {
       redirectWithError('DB chưa có cột % hao hụt. Cần chạy patch `sql/nvl_hao_hut_pct_patch_dev.sql` trước.')
     }
@@ -136,10 +153,13 @@ export async function createNvlAction(formData: FormData) {
   }
 
   if (priceInsert.error) {
+    if (isRlsError(priceInsert.error.message)) {
+      redirectWithError('Tạo được NVL nhưng DB đang chặn quyền ghi đơn giá. Cần chạy patch `sql/nvl_master_data_rls_patch_dev.sql` cho bảng `gia_nvl`.')
+    }
     redirectWithError(priceInsert.error.message)
   }
 
-  redirectWithMessage('Tạo NVL thành công')
+  redirectWithMessageAndQuery('Tạo NVL thành công', tenHang)
 }
 
 export async function updateNvlAction(formData: FormData) {
@@ -202,6 +222,9 @@ export async function updateNvlAction(formData: FormData) {
   }
 
   if (updateNvl.error) {
+    if (isRlsError(updateNvl.error.message)) {
+      redirectWithError('DB đang chặn quyền cập nhật NVL. Cần chạy patch `sql/nvl_master_data_rls_patch_dev.sql` cho bảng `nvl`.')
+    }
     if (updateNvl.error.message.includes('hao_hut_pct')) {
       redirectWithError('DB chưa có cột % hao hụt. Cần chạy patch `sql/nvl_hao_hut_pct_patch_dev.sql` trước.')
     }

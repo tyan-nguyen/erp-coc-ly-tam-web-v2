@@ -18,6 +18,10 @@ function stripColumn<T extends Record<string, unknown>>(payload: T, column: stri
   return next
 }
 
+function isMissingRelationError(message?: string) {
+  return /relation .* does not exist/i.test(String(message ?? '')) || /Could not find the table ['"]public\.[a-zA-Z0-9_]+['"] in the schema cache/i.test(String(message ?? ''))
+}
+
 async function insertBaoGiaWithFallback(
   supabase: AnySupabase,
   payload: Record<string, unknown>
@@ -308,9 +312,16 @@ export async function loadBaoGiaList(supabase: AnySupabase) {
     supabase.from('bao_gia_version').select('quote_id, version_no, action_type').limit(1000),
   ])
 
-  if (quoteError) throw quoteError
-  if (linkError) throw linkError
-  if (versionError) throw versionError
+  if (quoteError && !isMissingRelationError(quoteError.message)) throw quoteError
+  if (linkError && !isMissingRelationError(linkError.message)) throw linkError
+  if (versionError && !isMissingRelationError(versionError.message)) throw versionError
+  if (
+    (quoteError && isMissingRelationError(quoteError.message)) ||
+    (linkError && isMissingRelationError(linkError.message)) ||
+    (versionError && isMissingRelationError(versionError.message))
+  ) {
+    return []
+  }
 
   const quotes = (quoteRows ?? []) as Array<Record<string, unknown>>
   const projectMap = await loadProjectMap(supabase, unique(quotes.map((row) => String(row.da_id ?? ''))).filter(Boolean))

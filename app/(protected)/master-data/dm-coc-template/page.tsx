@@ -120,8 +120,8 @@ export default async function DmCocTemplatePage(props: { searchParams: SearchPar
       : ''
 
   return (
-    <div className="space-y-6">
-      <section className="app-surface rounded-2xl p-6">
+    <div className="master-data-page">
+      <section className="master-data-section">
         <div className="inline-flex rounded-full px-3 py-1 text-xs font-semibold tracking-[0.18em] uppercase app-primary-soft">
           Danh mục
         </div>
@@ -132,20 +132,13 @@ export default async function DmCocTemplatePage(props: { searchParams: SearchPar
       </section>
 
       {msg ? (
-        <section
-          className="rounded-2xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: 'color-mix(in srgb, var(--color-primary) 24%, white)',
-            backgroundColor: 'color-mix(in srgb, var(--color-primary) 8%, white)',
-            color: 'var(--color-primary)',
-          }}
-        >
+        <section className="master-data-section master-data-message master-data-message-success">
           {msg}
         </section>
       ) : null}
-      {err ? <section className="app-accent-soft rounded-2xl px-4 py-3 text-sm">{err}</section> : null}
+      {err ? <section className="master-data-section master-data-message master-data-message-error">{err}</section> : null}
 
-      <section className="app-surface rounded-2xl p-6">
+      <section className="master-data-section">
         <h2 className="text-lg font-semibold">Tạo mới</h2>
         <form action={createDmCocTemplateAction} className="mt-5 space-y-5">
           <DmCocTemplateFields
@@ -167,7 +160,7 @@ export default async function DmCocTemplatePage(props: { searchParams: SearchPar
         </form>
       </section>
 
-      <section className="app-surface rounded-2xl p-6">
+      <section className="master-data-section">
         {error ? (
           <pre className="app-accent-soft mt-4 overflow-auto rounded-xl p-4 text-sm">{JSON.stringify(error, null, 2)}</pre>
         ) : (

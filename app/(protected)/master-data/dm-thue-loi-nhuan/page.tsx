@@ -73,8 +73,8 @@ export default async function DmThueLoiNhuanPage(props: { searchParams: SearchPa
     loi_nhuan_pct: String(row.loi_nhuan_pct ?? ''),
   }))
   return (
-    <div className="space-y-6">
-      <section className="app-surface rounded-2xl p-6">
+    <div className="master-data-page">
+      <section className="master-data-section">
         <div className="inline-flex rounded-full px-3 py-1 text-xs font-semibold tracking-[0.18em] uppercase app-primary-soft">
           Danh mục
         </div>
@@ -85,26 +85,19 @@ export default async function DmThueLoiNhuanPage(props: { searchParams: SearchPa
       </section>
 
       {msg ? (
-        <section
-          className="rounded-2xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: 'color-mix(in srgb, var(--color-primary) 24%, white)',
-            backgroundColor: 'color-mix(in srgb, var(--color-primary) 8%, white)',
-            color: 'var(--color-primary)',
-          }}
-        >
+        <section className="master-data-section master-data-message master-data-message-success">
           {msg}
         </section>
       ) : null}
-      {err ? <section className="app-accent-soft rounded-2xl px-4 py-3 text-sm">{err}</section> : null}
+      {err ? <section className="master-data-section master-data-message master-data-message-error">{err}</section> : null}
 
       {missingSetup ? (
-        <section className="app-primary-soft rounded-2xl px-5 py-4 text-sm">
+        <section className="master-data-section master-data-message master-data-message-success">
           Chức năng này cần chạy SQL khởi tạo trước. File cần chạy: <code>sql/dm_thue_loi_nhuan_setup.sql</code>
         </section>
       ) : (
         <>
-          <section className="app-surface rounded-2xl p-6">
+          <section className="master-data-section">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold">Cấu hình VAT</h2>
@@ -162,7 +155,7 @@ export default async function DmThueLoiNhuanPage(props: { searchParams: SearchPa
             )}
           </section>
 
-          <section className="app-surface rounded-2xl p-6">
+          <section className="master-data-section">
             <h2 className="text-lg font-semibold">Tạo rule lợi nhuận</h2>
             <form action={createDmBienLoiNhuanAction} className="mt-5 space-y-5">
               <DmBienLoiNhuanForm diameterOptions={diameterOptions} />
@@ -177,7 +170,7 @@ export default async function DmThueLoiNhuanPage(props: { searchParams: SearchPa
             </form>
           </section>
 
-          <section className="app-surface rounded-2xl p-6">
+          <section className="master-data-section">
             <DmThueLoiNhuanGroupListClient
               groups={listGroups}
               basePath={BASE_PATH}

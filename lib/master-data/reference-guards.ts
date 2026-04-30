@@ -60,6 +60,11 @@ function isMissingColumnError(error: { message: string } | null | undefined, col
   return message.includes('column') && message.includes(columnName.toLowerCase()) && message.includes('does not exist')
 }
 
+function isMissingRelationError(error: { message: string } | null | undefined) {
+  const message = safeString(error?.message)
+  return /relation .* does not exist/i.test(message) || /Could not find the table ['"]public\.[a-zA-Z0-9_]+['"] in the schema cache/i.test(message)
+}
+
 function parseTemplateMeta(row: RowData) {
   const ghiChu = safeString(row.ghi_chu)
   if (!ghiChu.startsWith(TEMPLATE_META_PREFIX)) return {}
@@ -111,19 +116,21 @@ export async function buildNvlUsageMap(
   ])
 
   for (const result of [auxRows, mixRows, itemRows, templateRows]) {
-    if (result.error) throw new Error(result.error.message)
+    if (result.error && !isMissingRelationError(result.error)) {
+      throw new Error(result.error.message)
+    }
   }
 
-  for (const row of (auxRows.data ?? []) as RowData[]) {
+  for (const row of isMissingRelationError(auxRows.error) ? [] : ((auxRows.data ?? []) as RowData[])) {
     addReason(safeString(row.nvl_id), 'Định mức vật tư phụ')
   }
-  for (const row of (mixRows.data ?? []) as RowData[]) {
+  for (const row of isMissingRelationError(mixRows.error) ? [] : ((mixRows.data ?? []) as RowData[])) {
     addReason(safeString(row.nvl_id), 'Cấp phối bê tông')
   }
-  for (const row of (itemRows.data ?? []) as RowData[]) {
+  for (const row of isMissingRelationError(itemRows.error) ? [] : ((itemRows.data ?? []) as RowData[])) {
     addReason(safeString(row.nvl_id), 'Bóc tách')
   }
-  for (const row of (templateRows.data ?? []) as RowData[]) {
+  for (const row of isMissingRelationError(templateRows.error) ? [] : ((templateRows.data ?? []) as RowData[])) {
     for (const id of readTemplateNvlIds(row)) {
       addReason(id, 'Loại cọc mẫu')
     }
@@ -173,6 +180,10 @@ export async function buildTemplateUsageMap(
     data = result.data
     error = result.error
     if (!error) break
+
+    if (isMissingRelationError(error)) {
+      return new Map<string, string>()
+    }
 
     if (
       isMissingColumnError(error, 'template_id') ||
@@ -237,11 +248,18 @@ export async function getTemplateUsageMessage(
       ? await supabase.from('boc_tach_nvl').select('boc_id').eq('template_id', templateId).limit(1)
       : await Promise.resolve({ data: [], error: null })
 
+  if (isMissingRelationError(scopedResult.error)) {
+    return ''
+  }
+
   if (
     (!templateId || isMissingColumnError(scopedResult.error, 'template_id')) &&
     maCoc
   ) {
     scopedResult = await supabase.from('boc_tach_nvl').select('boc_id').eq('ma_coc', maCoc).limit(1)
+    if (isMissingRelationError(scopedResult.error)) {
+      return ''
+    }
   }
 
   if (
@@ -264,6 +282,9 @@ export async function getTemplateUsageMessage(
       compositeQuery = compositeQuery.eq('chieu_day', chieuDay)
     }
     scopedResult = await compositeQuery.limit(1)
+    if (isMissingRelationError(scopedResult.error)) {
+      return ''
+    }
   }
 
   if (scopedResult.error) throw new Error(scopedResult.error.message)

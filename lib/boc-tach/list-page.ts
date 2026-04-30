@@ -26,6 +26,10 @@ export type BocTachListPageData = {
   error: { message: string } | null
 }
 
+function isMissingRelationError(message?: string) {
+  return /relation .* does not exist/i.test(String(message ?? '')) || /Could not find the table ['"]public\.[a-zA-Z0-9_]+['"] in the schema cache/i.test(String(message ?? ''))
+}
+
 export async function loadBocTachListPageData(input: {
   qlsxViewer: boolean
 }) {
@@ -119,8 +123,11 @@ async function loadQuoteStatusByBocId(supabase: Awaited<ReturnType<typeof create
     supabase.from('bao_gia').select('quote_id, trang_thai, updated_at').eq('is_active', true).limit(1000),
   ])
 
-  if (linkError) throw linkError
-  if (quoteError) throw quoteError
+  if (linkError && !isMissingRelationError(linkError.message)) throw linkError
+  if (quoteError && !isMissingRelationError(quoteError.message)) throw quoteError
+  if ((linkError && isMissingRelationError(linkError.message)) || (quoteError && isMissingRelationError(quoteError.message))) {
+    return new Map<string, string>()
+  }
 
   const quoteMap = new Map(
     ((quoteRows ?? []) as RowData[]).map((row) => [
@@ -162,16 +169,26 @@ async function loadBocTachHeadersForList(supabase: Awaited<ReturnType<typeof cre
     return optimizedAttempt
   }
 
+  if (isMissingRelationError(optimizedAttempt.error.message)) {
+    return { data: [], error: null }
+  }
+
   if (!optimizedAttempt.error.message.toLowerCase().includes('column')) {
     return optimizedAttempt
   }
 
-  return supabase
+  const fallbackAttempt = await supabase
     .from('boc_tach_nvl')
     .select('*')
     .order('updated_at', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(500)
+
+  if (fallbackAttempt.error && isMissingRelationError(fallbackAttempt.error.message)) {
+    return { data: [], error: null }
+  }
+
+  return fallbackAttempt
 }
 
 function resolveHeaderId(row: RowData) {

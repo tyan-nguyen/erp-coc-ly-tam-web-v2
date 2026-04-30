@@ -879,7 +879,10 @@ export function computeBocTachPreview(
         : roadTransport?.mdPerTrip ?? 0
   const so_chuyen =
     md_per_trip > 0 ? Math.ceil(derivedTotalMd / Math.max(md_per_trip, 1)) : 0
-  const phi_van_chuyen = so_chuyen * h.don_gia_van_chuyen
+  const phi_van_chuyen =
+    h.phuong_thuc_van_chuyen === 'OTHER'
+      ? derivedTotalMd * Number(h.don_gia_van_chuyen || 0)
+      : so_chuyen * Number(h.don_gia_van_chuyen || 0)
   const transportDetails =
     h.phuong_thuc_van_chuyen === 'WATERWAY'
       ? [
@@ -889,7 +892,11 @@ export function computeBocTachPreview(
           { label: 'Chi phí VC tổng', value: `${String(round3(phi_van_chuyen))} VND` },
         ]
       : h.phuong_thuc_van_chuyen === 'OTHER'
-        ? [{ label: 'Kết luận', value: 'Không tính vận chuyển' }]
+        ? [
+            { label: 'Đơn giá VC/md', value: `${String(round3(Number(h.don_gia_van_chuyen || 0)))} VND/md` },
+            { label: 'Tổng md đơn hàng', value: formatTransportValue(derivedTotalMd) },
+            { label: 'Chi phí VC tổng', value: `${String(round3(phi_van_chuyen))} VND` },
+          ]
         : roadTransport?.details ?? []
 
   const tong_gia_nvl = sumBy(items, (item) => item.so_luong * item.don_gia)
@@ -921,7 +928,9 @@ export function computeBocTachPreview(
         h.phuong_thuc_van_chuyen === 'WATERWAY'
           ? 'MANUAL_WATERWAY'
           : h.phuong_thuc_van_chuyen === 'OTHER'
-            ? 'NONE'
+            ? Number(h.don_gia_van_chuyen || 0) > 0
+              ? 'MANUAL_OTHER_PER_MD'
+              : 'NONE'
             : 'AUTO_ROAD',
       details: transportDetails,
     },

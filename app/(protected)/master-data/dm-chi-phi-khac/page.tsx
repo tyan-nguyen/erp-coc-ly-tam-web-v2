@@ -57,8 +57,8 @@ export default async function DmChiPhiKhacPage(props: { searchParams: SearchPara
   const groupedRows = buildInitialRows(costRows, diameters)
 
   return (
-    <div className="space-y-6">
-      <section className="app-surface rounded-2xl p-6">
+    <div className="master-data-page">
+      <section className="master-data-section">
         <div className="inline-flex rounded-full px-3 py-1 text-xs font-semibold tracking-[0.18em] uppercase app-primary-soft">
           Danh mục
         </div>
@@ -68,26 +68,15 @@ export default async function DmChiPhiKhacPage(props: { searchParams: SearchPara
         </p>
       </section>
 
-      {msg ? (
-        <section
-          className="rounded-2xl border px-4 py-3 text-sm"
-          style={{
-            borderColor: 'color-mix(in srgb, var(--color-primary) 24%, white)',
-            backgroundColor: 'color-mix(in srgb, var(--color-primary) 8%, white)',
-            color: 'var(--color-primary)',
-          }}
-        >
-          {msg}
-        </section>
-      ) : null}
-      {err ? <section className="app-accent-soft rounded-2xl px-4 py-3 text-sm">{err}</section> : null}
+      {msg ? <section className="master-data-section master-data-message master-data-message-success">{msg}</section> : null}
+      {err ? <section className="master-data-section master-data-message master-data-message-error">{err}</section> : null}
 
       {missingSetup ? (
-        <section className="app-primary-soft rounded-2xl px-5 py-4 text-sm">
+        <section className="master-data-section master-data-message master-data-message-success">
           Chức năng này cần chạy SQL khởi tạo trước. File cần chạy: <code>sql/dm_chi_phi_khac_md_setup.sql</code>
         </section>
       ) : (
-        <section className="app-surface rounded-2xl p-6">
+        <section className="master-data-section">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Ma trận chi phí khác / md</h2>

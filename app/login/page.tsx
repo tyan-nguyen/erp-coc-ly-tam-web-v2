@@ -2,63 +2,22 @@
 
 import Image from 'next/image'
 import type { CSSProperties, FormEvent } from 'react'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 const DEFAULT_LOGIN_DOMAIN = 'nguyentrinh.com.vn'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+  const queryError = searchParams.get('err') || ''
 
   const [account, setAccount] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    let isMounted = true
-
-    async function checkExistingSession() {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
-
-        if (isMounted && session?.user) {
-          router.replace('/dashboard')
-        }
-      } catch (err) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : err && typeof err === 'object' && 'message' in err
-              ? String((err as { message: unknown }).message)
-              : ''
-        const normalized = message.toLowerCase()
-        if (
-          normalized.includes('lock:sb-') ||
-          normalized.includes('another request stole it') ||
-          normalized.includes('navigatorlockmanager') ||
-          normalized.includes('invalid refresh token') ||
-          normalized.includes('refresh token not found')
-        ) {
-          await supabase.auth.signOut({ scope: 'local' })
-          return
-        }
-        if (isMounted) {
-          setError(message || 'Không kiểm tra được phiên đăng nhập hiện tại.')
-        }
-      }
-    }
-
-    void checkExistingSession()
-
-    return () => {
-      isMounted = false
-    }
-  }, [router, supabase])
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault()
@@ -155,7 +114,7 @@ export default function LoginPage() {
             />
           </div>
 
-          {error ? (
+          {error || queryError ? (
             <div
               className="mt-6 rounded-xl border px-4 py-3 text-sm"
               style={{
@@ -164,7 +123,7 @@ export default function LoginPage() {
                 color: '#991b1b',
               }}
             >
-              {error}
+              {error || queryError}
             </div>
           ) : null}
 
