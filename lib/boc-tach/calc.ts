@@ -124,6 +124,43 @@ function findSteelMaterialByDiameter(
   )
 }
 
+function accessoryKindFromName(value: string | null | undefined) {
+  const normalized = normalizeText(value || '')
+  if (normalized.includes('MAT BICH')) return 'mat_bich'
+  if (normalized.includes('MANG XONG') || normalized.includes('MANGXONG')) return 'mang_xong'
+  if (normalized.includes('MUI COC')) return 'mui_coc'
+  if (
+    normalized.includes('TAP') ||
+    normalized.includes('TAM VUONG') ||
+    normalized.includes('TAMVUONG') ||
+    normalized.includes('TAP VUONG') ||
+    normalized.includes('TAPVUONG')
+  ) {
+    return 'tap'
+  }
+  return null
+}
+
+function resolveAccessoryKindForItem(
+  item: BocTachDetailPayload['items'][number],
+  materials: BocTachReferenceData['materials']
+) {
+  if (item.loai_nvl !== 'PHU_KIEN') return null
+  const kindFromName = accessoryKindFromName(item.ten_nvl)
+  if (kindFromName) return kindFromName
+  if (!item.nvl_id) return null
+  const material = materials.find((row) => row.nvl_id === item.nvl_id)
+  return material ? accessoryKindFromName(material.ten_hang) : null
+}
+
+function hasAccessorySelection(
+  items: BocTachDetailPayload['items'],
+  materials: BocTachReferenceData['materials'],
+  kind: 'mat_bich' | 'mang_xong' | 'mui_coc' | 'tap'
+) {
+  return items.some((item) => resolveAccessoryKindForItem(item, materials) === kind)
+}
+
 function calcSegmentConcrete(seg: BocTachSegmentInput, doMm: number, tMm: number): number {
   const di = doMm - 2 * tMm
   const sM2 = (PI * (doMm ** 2 - di ** 2)) / 4 * 1e-6
@@ -466,10 +503,11 @@ function calcSegmentSnapshot(
   const thep_buoc_kg = h.pc_nos * 3 * 2 * kgPerMBuoc * segmentCount
 
   const muiCount = Number(seg.mui_segments || 0)
+  const hasTapSelection = hasAccessorySelection(payload.items, refs.materials, 'tap')
   const mat_bich = 2 * segmentCount
   const mang_xong = 2 * segmentCount
   const mui_coc = muiCount
-  const tap = muiCount
+  const tap = hasTapSelection ? muiCount : 0
   const capPhoiRows = resolveConcreteMixRows(refs, h.mac_be_tong, h.cap_phoi_variant)
   const cap_phoi_items = buildConcreteMixPreview(concrete_m3, capPhoiRows)
   const auxiliary_items = buildAuxiliaryPreview(seg, payload, refs)

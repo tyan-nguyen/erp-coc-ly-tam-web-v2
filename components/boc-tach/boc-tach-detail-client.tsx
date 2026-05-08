@@ -44,6 +44,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
 ]
 
 const FIXED_SEGMENT_ORDER = ['MUI', 'THAN_1', 'THAN_2', 'THAN_3', 'THAN_4', 'THAN_5']
+const ACCESSORY_NONE_VALUE = '__NONE__'
 
 function normalizeRefs(refs?: BocTachReferenceData): BocTachReferenceData {
   return {
@@ -883,12 +884,15 @@ export function BocTachDetailClient(props: {
 
   function updateAccessorySelection(kind: 'mat_bich' | 'mang_xong' | 'mui_coc' | 'tap', nvlId: string) {
     markInteracted()
-    const material = refs.materials.find((item) => item.nvl_id === nvlId)
-    if (!material) return
     setPayload((prev) => {
       const nextItems = prev.items.filter(
         (item) => resolveAccessoryKindForItem(item, refs.materials) !== kind
       )
+      if (!nvlId || nvlId === ACCESSORY_NONE_VALUE) {
+        return { ...prev, items: nextItems }
+      }
+      const material = refs.materials.find((item) => item.nvl_id === nvlId)
+      if (!material) return prev
       nextItems.push({
         nvl_id: material.nvl_id,
         ten_nvl: material.ten_hang,
@@ -1179,9 +1183,12 @@ export function BocTachDetailClient(props: {
             />
             <SearchSelectField
               label="Táp vuông"
-              value={selectedAccessoryIds.tap}
+              value={selectedAccessoryIds.tap || ACCESSORY_NONE_VALUE}
               disabled={locked}
-              options={accessoryOptions}
+              options={[
+                { value: ACCESSORY_NONE_VALUE, label: 'Không sử dụng' },
+                ...accessoryOptions,
+              ]}
               onChange={(value) => updateAccessorySelection('tap', value)}
               placeholder="-- chọn táp vuông --"
             />
