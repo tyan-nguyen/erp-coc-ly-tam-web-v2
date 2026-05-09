@@ -330,8 +330,8 @@ export function BocTachDetailClient(props: {
       FIXED_SEGMENT_ORDER.map((name) => {
         const found = payload.segments.find((segment) => segment.ten_doan === name)
         const perTim = found ? derivePerTimCount(found, pileCount) : 0
-        return (
-          found ?? {
+        if (!found) {
+          return {
             ten_doan: name,
             len_m: 0,
             cnt: perTim,
@@ -340,7 +340,7 @@ export function BocTachDetailClient(props: {
             v1: 0,
             v2: 0,
             v3: 0,
-            mui_segments: name === 'MUI' ? pileCount : 0,
+            mui_segments: 0,
             dai_kep_chi_a1: true,
             a1_mm: 0,
             a2_mm: 0,
@@ -350,7 +350,13 @@ export function BocTachDetailClient(props: {
             p3_pct: 0,
             don_kep_factor: 1,
           }
-        )
+        }
+
+        return {
+          ...found,
+          cnt: perTim,
+          mui_segments: deriveMuiSegmentCount(found, pileCount),
+        }
       }),
     [payload.segments, pileCount]
   )
@@ -823,7 +829,7 @@ export function BocTachDetailClient(props: {
               v1: 0,
               v2: 0,
               v3: 0,
-              mui_segments: name === 'MUI' ? pileCount : 0,
+              mui_segments: 0,
               dai_kep_chi_a1: true,
               a1_mm: 0,
               a2_mm: 0,
@@ -834,6 +840,7 @@ export function BocTachDetailClient(props: {
               don_kep_factor: 1,
             }
       const next = { ...base, ...patch, ten_doan: name }
+      next.mui_segments = deriveMuiSegmentCount(next, pileCount)
 
       if (existingIndex >= 0) {
         return {
@@ -859,11 +866,14 @@ export function BocTachDetailClient(props: {
       ...prev,
       segments: prev.segments.map((segment) => {
         const perTim = derivePerTimCount(segment, pileCount || nextPileCount || 1)
-        return {
+        const nextSegment = {
           ...segment,
           cnt: perTim,
           so_luong_doan: perTim * nextPileCount,
-          mui_segments: segment.ten_doan === 'MUI' ? nextPileCount : 0,
+        }
+        return {
+          ...nextSegment,
+          mui_segments: deriveMuiSegmentCount(nextSegment, nextPileCount),
         }
       }),
     }))
@@ -1175,9 +1185,12 @@ export function BocTachDetailClient(props: {
             />
             <SearchSelectField
               label="Mũi cọc"
-              value={selectedAccessoryIds.mui_coc}
+              value={selectedAccessoryIds.mui_coc || ACCESSORY_NONE_VALUE}
               disabled={locked}
-              options={accessoryOptions}
+              options={[
+                { value: ACCESSORY_NONE_VALUE, label: 'Không sử dụng' },
+                ...accessoryOptions,
+              ]}
               onChange={(value) => updateAccessorySelection('mui_coc', value)}
               placeholder="-- chọn mũi cọc --"
             />
@@ -1264,7 +1277,6 @@ export function BocTachDetailClient(props: {
                           updateSegmentByName(segment.ten_doan, {
                             cnt: value,
                             so_luong_doan: value * pileCount,
-                            mui_segments: segment.ten_doan === 'MUI' ? pileCount : 0,
                           })
                         }
                       />
@@ -2662,6 +2674,14 @@ function derivePerTimCount(segment: BocTachSegmentInput, pileCount: number) {
   if (cnt > 0 && cnt !== total) return cnt
   if (pileCount > 0 && total > 0) return roundTo(total / pileCount, 3)
   return cnt > 0 ? cnt : total
+}
+
+function deriveMuiSegmentCount(segment: Pick<BocTachSegmentInput, 'ten_doan' | 'cnt' | 'so_luong_doan' | 'len_m'>, pileCount: number) {
+  if (segment.ten_doan !== 'MUI') return 0
+  const perTim = derivePerTimCount(segment as BocTachSegmentInput, pileCount || 1)
+  const length = Number(segment.len_m || 0)
+  if (perTim <= 0 || length <= 0) return 0
+  return perTim * Math.max(0, pileCount)
 }
 
 function buildTechInputRows(payload: BocTachDetailPayload, preview: BocTachPreview): TechTableRow[] {

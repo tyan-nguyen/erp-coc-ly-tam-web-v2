@@ -502,7 +502,11 @@ function calcSegmentSnapshot(
   const kgPerMBuoc = 7.85 * PI * h.buoc_dia_mm ** 2 / 4 / 1000
   const thep_buoc_kg = h.pc_nos * 3 * 2 * kgPerMBuoc * segmentCount
 
-  const muiCount = Number(seg.mui_segments || 0)
+  const hasMuiCocSelection = hasAccessorySelection(payload.items, refs.materials, 'mui_coc')
+  const muiCount =
+    hasMuiCocSelection && segmentCount > 0 && Number(seg.len_m || 0) > 0
+      ? Number(seg.mui_segments || 0)
+      : 0
   const hasTapSelection = hasAccessorySelection(payload.items, refs.materials, 'tap')
   const mat_bich = 2 * segmentCount
   const mang_xong = 2 * segmentCount
