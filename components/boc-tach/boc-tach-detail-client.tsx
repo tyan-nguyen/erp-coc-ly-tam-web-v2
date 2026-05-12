@@ -666,7 +666,8 @@ export function BocTachDetailClient(props: {
 
   const totalMaterialCost = sumRows(allMaterialRows)
   const otherCostAmount = totalMd * Number(otherCostPerMd || 0)
-  const subtotal = totalMaterialCost + otherCostAmount
+  const transportAmount = Number(preview.van_chuyen.phi_van_chuyen || 0)
+  const subtotal = totalMaterialCost + otherCostAmount + transportAmount
   const profitAmount = subtotal * (Number(profitPct || 0) / 100)
   const preTaxAmount = subtotal + profitAmount
   const vatAmount = preTaxAmount * (Number(taxPct || 0) / 100)
@@ -1451,7 +1452,7 @@ export function BocTachDetailClient(props: {
             transportMode={payload.header.phuong_thuc_van_chuyen}
             shippingPrice={payload.header.don_gia_van_chuyen}
             shippingTrips={preview.van_chuyen.so_chuyen}
-            shippingAmount={preview.van_chuyen.phi_van_chuyen}
+            shippingAmount={transportAmount}
           />
 
           <EstimateSummaryCard

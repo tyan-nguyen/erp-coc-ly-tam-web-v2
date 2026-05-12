@@ -46,7 +46,7 @@ const ROAD_TRANSPORT_PROFILE = {
   maxKg: 30000,
   widthM: 2.35,
   heightM: 2.5,
-  lengthM: 12,
+  lengthM: 14,
 } as const
 
 function sumBy<T>(rows: T[], fn: (row: T) => number): number {
